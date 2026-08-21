@@ -1,0 +1,200 @@
+# Improve HypeCheck Profile Screen on iPhone
+
+Improve the existing HypeCheck Profile screen.
+
+Do not redesign the entire app.
+Do not change the Discover, Search, Review, or Wants screens.
+Focus only on the Profile screen layout and its tabs.
+
+## 1. Fix top safe-area spacing
+
+On iPhone devices with a Dynamic Island, especially iPhone 17 Pro Max, the profile content currently sits too high and too close to the Dynamic Island.
+
+Use the device safe area correctly.
+
+The top of the profile header should start comfortably below the Dynamic Island/status bar.
+
+Use React Native safe-area handling, such as:
+
+* SafeAreaView
+* useSafeAreaInsets
+  or the existing safe-area solution in the project.
+
+Do NOT hardcode spacing for one specific iPhone model.
+
+The screen should automatically adapt to:
+
+* Dynamic Island iPhones
+* Notched iPhones
+* Smaller iPhones
+* Android devices
+
+Add a small amount of intentional breathing room below the top safe area.
+
+## 2. Improve profile header layout
+
+Keep the existing information:
+
+* Avatar
+* Display name
+* @username
+* Bio
+* Edit Profile button
+* Reviews count
+* Followers
+* Following
+* Helpful votes
+
+But make the spacing cleaner and more balanced.
+
+The avatar and name area should not feel cramped.
+
+Make sure:
+
+* Avatar is vertically aligned with the name/profile information.
+* Edit button is easy to tap.
+* Stats have even spacing.
+* The bio has enough room.
+* The header feels like a polished social media profile.
+
+Do not make the header excessively tall.
+
+## 3. Make profile tabs functional
+
+The current tabs are:
+
+* Reviews
+* Wants
+* Lists
+
+These must actually switch the content shown below them.
+
+### Reviews tab
+
+When selected:
+
+* Show reviews belonging to the profile being viewed.
+* For the current user, load from Supabase using the authenticated user's profile ID.
+* Show an empty state if there are no reviews.
+
+Example empty state:
+
+"No reviews yet"
+
+"Products you review will appear here."
+
+### Wants tab
+
+When selected:
+
+* Show the current user's saved Wants.
+* Use the same live Supabase data as the main Wants screen.
+* Do NOT create a separate duplicate Wants dataset.
+
+If there are 3 Wants, the label can show:
+
+Wants (3)
+
+Tapping the tab should actually show those 3 products.
+
+Each product should be tappable and open Product Details.
+
+If there are no saved products, show:
+
+"No Wants yet"
+
+"Swipe right on products you like and they'll show up here."
+
+### Lists tab
+
+Make this tab functional enough for the current prototype.
+
+If custom Lists are not built yet:
+
+Show a clean empty state:
+
+"No lists yet"
+
+"Create lists to organize products you want."
+
+Include a button:
+
+"Create List"
+
+For now, the Create List button may open a simple placeholder/modal if the full Lists backend is not built yet.
+
+Do NOT fake existing lists.
+
+## 4. Tab appearance
+
+Keep the tabs horizontal:
+
+Reviews | Wants | Lists
+
+The selected tab should:
+
+* Use HypeCheck's primary color
+* Have a visible underline or indicator
+
+Unselected tabs should use muted text.
+
+Switching tabs should feel immediate.
+
+Do not navigate to a completely different screen when changing these tabs.
+
+## 5. Signed-out profile state
+
+Preserve the existing guest state.
+
+If the user is logged out:
+
+* Keep "Discover as a guest"
+* Keep the sign-in/create-account messaging
+* Do not show private Wants data
+
+If needed, tapping Wants while signed out should prompt the user to sign in.
+
+## 6. Shared profile data
+
+Do not hardcode profile stats or current user data.
+
+Use the same live profile source for:
+
+* Avatar
+* Display name
+* Username
+* Bio
+* Reviews count
+* Wants count
+* Followers
+* Following
+* Helpful votes
+
+Where a backend feature is not implemented yet, show a proper zero/empty state rather than fake numbers.
+
+## 7. Test on mobile
+
+Test specifically in Expo Go with a tall Dynamic Island iPhone layout.
+
+Verify:
+
+1. Profile header no longer touches or crowds the Dynamic Island.
+2. Reviews tab works.
+3. Wants tab works.
+4. Wants count matches the real saved products.
+5. Lists tab responds when tapped.
+6. Selected tab indicator updates correctly.
+7. Bottom navigation remains visible and correctly spaced.
+8. Scrolling works when profile content becomes long.
+9. Avatar/profile information still loads from Supabase.
+10. No regression to profile-photo updating.
+
+After finishing, tell me:
+
+* what caused the top spacing issue
+* which files were changed
+* how the safe area is now handled
+* how Reviews/Wants/Lists tabs are implemented
+* which parts of Lists are still placeholders, if any
+
+Do not make unrelated changes.
