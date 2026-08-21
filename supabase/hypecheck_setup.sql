@@ -45,10 +45,14 @@ alter table if exists public.reviews
   alter column review_text set default '';
 
 alter table if exists public.reviews
-  alter column review_text set not null;
+  drop constraint if exists reviews_review_text_check;
+
+update public.reviews
+set review_text = ''
+where review_text is null;
 
 alter table if exists public.reviews
-  drop constraint if exists reviews_review_text_check;
+  alter column review_text set not null;
 
 create table if not exists public.wants (
   id uuid primary key default gen_random_uuid(),
