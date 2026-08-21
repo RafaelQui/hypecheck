@@ -153,6 +153,7 @@ export const ListProductsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "name": zod.string(),
+  "description": zod.string().nullish(),
   "category": zod.string(),
   "price": zod.number().describe('Retail price'),
   "retailer": zod.string().nullish(),

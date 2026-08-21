@@ -117,7 +117,10 @@ export async function pgProxy(
   } = {},
 ): Promise<Awaited<ReturnType<typeof connectors.proxy>>> {
   const { method = "GET", headers = {}, body } = options;
-  return connectors.proxy("supabase", path, {
+  // This workspace's Supabase connection is configured with `/rest/v1` as its
+  // base URL. Keep routes expressive while avoiding a duplicated REST prefix.
+  const dataPath = path.replace(/^\/rest\/v1(?=\/|\?)/, "") || "/";
+  return connectors.proxy("supabase", dataPath, {
     method,
     headers: { "Content-Type": "application/json", ...headers },
     ...(body !== undefined ? { body } : {}),
@@ -138,7 +141,8 @@ export async function pgProxyAuth(
   } = {},
 ): Promise<Awaited<ReturnType<typeof connectors.proxy>>> {
   const { method = "GET", headers = {}, body } = options;
-  return connectors.proxy("supabase", path, {
+  const dataPath = path.replace(/^\/rest\/v1(?=\/|\?)/, "") || "/";
+  return connectors.proxy("supabase", dataPath, {
     method,
     headers: {
       "Content-Type": "application/json",

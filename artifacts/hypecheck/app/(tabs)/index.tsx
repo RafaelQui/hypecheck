@@ -34,6 +34,7 @@ function toDisplayProduct(product: ProductSummary, index: number): Product {
     id: product.id,
     name: product.name,
     category: product.category,
+    description: product.description ?? fallback.description,
     price: product.price,
     rating: product.rating ?? 0,
     reviews: product.reviewCount ?? 0,
@@ -164,13 +165,17 @@ export default function DiscoverTab() {
   const [onboarded,setOnboarded]=useState(false); const [tab,setTab]=useState('Discover'); const [optimisticAdds,setOptimisticAdds]=useState<string[]>([]); const [optimisticRemovals,setOptimisticRemovals]=useState<string[]>([]); const [detail,setDetail]=useState<Product|null>(null);
   const { session }=useAuth();
   const productsQuery=useListProducts(undefined,{query:{queryKey:getListProductsQueryKey(),retry:false}});
-  const catalog=productsQuery.data?.items?.length?productsQuery.data.items.map(toDisplayProduct):products;
+  const catalog=productsQuery.data?.items?.map(toDisplayProduct)??[];
   const wantsQuery=useGetWants({query:{queryKey:getGetWantsQueryKey(),retry:false,enabled:!!session}}); const saveWant=useSaveWant(); const removeWant=useRemoveWant();
   const remoteWants=wantsQuery.data?.items.map(item=>item.productId)??[]; const wants=Array.from(new Set([...remoteWants,...optimisticAdds])).filter(id=>!optimisticRemovals.includes(id));
   const addWant=(id:string)=>{if(!session)return Alert.alert('Sign in to save','Create an account or sign in to save products to your Wants.');if(wants.includes(id))return;setOptimisticRemovals(value=>value.filter(item=>item!==id));setOptimisticAdds(value=>[...value,id]);saveWant.mutate({data:{productId:id}},{onSuccess:()=>wantsQuery.refetch(),onError:()=>{setOptimisticAdds(value=>value.filter(item=>item!==id));Alert.alert('Could not save Want','Supabase could not save this product. Please try again.');}});};
   const removeWantById=(id:string)=>{if(!session)return;setOptimisticRemovals(value=>[...value,id]);setOptimisticAdds(value=>value.filter(item=>item!==id));removeWant.mutate({params:{productId:id}},{onSuccess:()=>wantsQuery.refetch(),onError:()=>{setOptimisticRemovals(value=>value.filter(item=>item!==id));Alert.alert('Could not remove Want','Supabase could not update your Wants.');}});};
   const setWants=(next:string[])=>{next.filter(id=>!wants.includes(id)).forEach(addWant);wants.filter(id=>!next.includes(id)).forEach(removeWantById);};
-  if(!onboarded)return <Onboarding onDone={()=>setOnboarded(true)}/>; if(detail)return <Detail product={detail} onBack={()=>setDetail(null)} onWant={()=>wants.includes(detail.id)?removeWantById(detail.id):addWant(detail.id)} wanted={wants.includes(detail.id)}/>; return <>{tab==='Discover'&&<Discover catalog={catalog} wants={wants} setWants={setWants} onDetail={setDetail}/>} {tab==='Search'&&<SearchScreen catalog={catalog} onDetail={setDetail}/>} {tab==='Review'&&<ReviewScreen catalog={catalog} onSubmitted={()=>setTab('Profile')}/>} {tab==='Wants'&&<WantsScreen catalog={catalog} wants={wants} onDetail={setDetail} onRemove={removeWantById} onDiscover={()=>setTab('Discover')} isLoading={!!session&&wantsQuery.isLoading} error={!!session&&wantsQuery.isError}/>} {tab==='Profile'&&<ProfileScreen wants={wants}/>}<View style={s.floatingNav}>{[['Discover','home'],['Search','search'],['Review','edit-3'],['Wants','heart'],['Profile','user']].map(([name,icon])=><Pressable key={name} onPress={()=>setTab(name)} style={s.navItem}><Feather name={icon as any} size={20} color={tab===name?colors.primary:colors.mutedForeground}/><Text style={[s.navLabel,tab===name&&s.navLabelActive]}>{name}</Text></Pressable>)}</View></>;
+  if(!onboarded)return <Onboarding onDone={()=>setOnboarded(true)}/>;
+  if(productsQuery.isLoading)return <View style={[s.page,s.emptyTab]}><Text style={s.emptyTitle}>Loading live products…</Text><Text style={s.muted}>Connecting to Supabase.</Text></View>;
+  if(productsQuery.isError||!catalog.length){const message=productsQuery.error instanceof Error?productsQuery.error.message:'The live Supabase catalog returned no products.';return <View style={[s.page,s.emptyTab]}><Text style={s.emptyTitle}>Could not load live products</Text><Text style={[s.muted,s.emptyCopy]}>{message}</Text><Pressable onPress={()=>productsQuery.refetch()} style={[s.primaryButton,s.discoverButton]}><Text style={s.primaryText}>Try again</Text></Pressable></View>;}
+  if(detail)return <Detail product={detail} onBack={()=>setDetail(null)} onWant={()=>wants.includes(detail.id)?removeWantById(detail.id):addWant(detail.id)} wanted={wants.includes(detail.id)}/>;
+  return <>{tab==='Discover'&&<Discover catalog={catalog} wants={wants} setWants={setWants} onDetail={setDetail}/>} {tab==='Search'&&<SearchScreen catalog={catalog} onDetail={setDetail}/>} {tab==='Review'&&<ReviewScreen catalog={catalog} onSubmitted={()=>setTab('Profile')}/>} {tab==='Wants'&&<WantsScreen catalog={catalog} wants={wants} onDetail={setDetail} onRemove={removeWantById} onDiscover={()=>setTab('Discover')} isLoading={!!session&&wantsQuery.isLoading} error={!!session&&wantsQuery.isError}/>} {tab==='Profile'&&<ProfileScreen wants={wants}/>}<View style={s.floatingNav}>{[['Discover','home'],['Search','search'],['Review','edit-3'],['Wants','heart'],['Profile','user']].map(([name,icon])=><Pressable key={name} onPress={()=>setTab(name)} style={s.navItem}><Feather name={icon as any} size={20} color={tab===name?colors.primary:colors.mutedForeground}/><Text style={[s.navLabel,tab===name&&s.navLabelActive]}>{name}</Text></Pressable>)}</View></>;
 }
 
 const s=StyleSheet.create({

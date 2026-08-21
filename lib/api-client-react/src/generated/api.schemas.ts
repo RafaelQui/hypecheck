@@ -56,6 +56,7 @@ export interface WantInput {
 export interface ProductSummary {
   id: string;
   name: string;
+  description?: string | null;
   category: string;
   /** Retail price */
   price: number;

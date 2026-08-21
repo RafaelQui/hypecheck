@@ -17,6 +17,7 @@ function toProductSummary(r: Record<string, unknown>) {
   return {
     id: String(r.id ?? ""),
     name: String(r.name ?? ""),
+    description: typeof r.description === "string" ? r.description : null,
     category: String(r.category ?? ""),
     price: typeof r.price === "number" ? r.price : parseFloat(String(r.price ?? "0")) || 0,
     retailer: typeof r.retailer === "string" ? r.retailer : null,

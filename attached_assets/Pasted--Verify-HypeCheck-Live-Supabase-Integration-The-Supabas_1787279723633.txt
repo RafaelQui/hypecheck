@@ -1,0 +1,120 @@
+# Verify HypeCheck Live Supabase Integration
+
+The Supabase SQL setup has now been successfully executed in my live Supabase project.
+
+Do not redesign the app and do not create a new database schema.
+
+Now verify that HypeCheck is actually using the live Supabase backend rather than local/mock persistence.
+
+Test the following end-to-end:
+
+1. AUTHENTICATION
+
+* Confirm signup/login connects to Supabase Auth.
+* Confirm a new authenticated user receives a corresponding row in the `profiles` table.
+* Confirm the app uses the authenticated user's UUID rather than a hardcoded user.
+
+2. PRODUCTS
+
+* Confirm products are loading from the live Supabase `products` table.
+* Confirm the seeded demo products are available.
+* Do not rely on hardcoded frontend products when Supabase is available.
+
+3. WANTS
+   Test this complete flow:
+
+Discover → swipe RIGHT on a product → insert into `wants` → open Wants → product appears.
+
+Confirm:
+
+* The row is actually written to Supabase.
+* `user_id` matches the authenticated user.
+* `product_id` matches the actual product.
+* Duplicate Wants are prevented.
+* Removing a Want deletes the Supabase record.
+* Closing/restarting the app does not remove saved Wants.
+
+Remove any "Saved locally — Supabase will sync when available" message when live persistence is working.
+
+4. REVIEWS
+   Test:
+
+Select product → choose rating → choose Worth It Yes/No → write text OR add media → Post Review.
+
+Confirm the review is inserted into the live `reviews` table using:
+
+* authenticated user_id
+* actual product_id
+* rating
+* worth_it
+* review_text
+* photo_url when applicable
+* video_url when applicable
+
+5. REVIEW RELATIONSHIPS
+
+After posting one review, confirm the SAME database review can appear on:
+
+* Product Details
+* User Profile
+* Discover when appropriate
+
+Do not create separate copies of the review for each screen.
+
+All screens should reference the same Supabase review record.
+
+6. HYPECHECK SCORE
+
+Confirm product ratings and "Worth the Hype" values come from the live `product_summaries` view.
+
+Do not use hardcoded ratings when real review data exists.
+
+Example:
+
+89 Worth It reviews
+11 Not Worth It reviews
+
+= 89% Worth the Hype
+
+7. MEDIA
+
+Verify:
+
+* Review videos upload to `review-videos`
+* Review photos upload to `review-images`
+* Profile pictures upload to `avatars`
+
+Confirm uploaded files use the authenticated user's UUID as the first folder in the Storage path so they comply with the existing RLS policies.
+
+8. ERROR HANDLING
+
+If any Supabase operation fails:
+
+* Show the actual relevant error during development.
+* Do not silently fall back to mock/local data and report success.
+* Clearly tell me which operation failed and why.
+
+IMPORTANT:
+
+Do not modify the Supabase schema unless you identify a genuine problem.
+
+Do not create duplicate tables.
+
+Do not use a service-role key in the mobile application.
+
+Do not redesign any screens.
+
+This task is ONLY to verify and fix the connection between the existing HypeCheck application and the live Supabase database.
+
+When finished, give me a report showing:
+
+* Authentication: LIVE / NOT LIVE
+* Products: LIVE / NOT LIVE
+* Wants: LIVE / NOT LIVE
+* Reviews: LIVE / NOT LIVE
+* HypeScore calculations: LIVE / NOT LIVE
+* Photo uploads: LIVE / NOT LIVE
+* Video uploads: LIVE / NOT LIVE
+* Avatars: LIVE / NOT LIVE
+
+For anything marked NOT LIVE, explain exactly what remains to be fixed.

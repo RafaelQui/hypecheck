@@ -699,6 +699,9 @@ components:
           type: string
         name:
           type: string
+        description:
+          type: string
+          nullable: true
         category:
           type: string
         price:
