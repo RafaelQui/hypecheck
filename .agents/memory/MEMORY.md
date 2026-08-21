@@ -2,3 +2,4 @@
 - [Wants persistence boundary](wants-supabase.md) — provision want_list and real user identity before claiming cloud-backed wishlist persistence.
 - [Supabase connector scope](supabase-connector-scope.md) — this workspace’s connector reaches PostgREST data paths but not Supabase Auth or Storage root endpoints.
 - [Expo video source identity](expo-video-source-identity.md) — pass a stable source to useVideoPlayer; recreating a source object during render can reset active playback.
+- [Review engagement state](review-engagement-state.md) — counts alone cannot drive a personal Helpful control; reads must include the authenticated viewer’s own vote state.

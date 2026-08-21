@@ -45,6 +45,94 @@ function diagnosticMessage(diagnostic: SupabaseDiagnostic) {
   return fragments.join(" — ");
 }
 
+async function getHelpfulCount(reviewId: string, headers: Record<string, string>) {
+  const response = await supabaseRootFetch(
+    `/rest/v1/likes?review_id=eq.${encodeURIComponent(reviewId)}&select=id`,
+    { headers },
+  );
+  if (!response.ok) return null;
+  const rows = (await response.json()) as Array<unknown>;
+  return rows.length;
+}
+
+async function verifyReview(reviewId: string, headers: Record<string, string>) {
+  const response = await supabaseRootFetch(
+    `/rest/v1/reviews?id=eq.${encodeURIComponent(reviewId)}&select=id&limit=1`,
+    { headers },
+  );
+  if (!response.ok) return null;
+  const rows = (await response.json()) as Array<{ id?: unknown }>;
+  return rows.length > 0;
+}
+
+router.post("/reviews/:reviewId/helpful", async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const reviewId = req.params.reviewId;
+  if (!uuidPattern.test(reviewId)) {
+    return res.status(400).json({ message: "That review could not be found." });
+  }
+
+  const token = extractBearerToken(req)!;
+  const headers = { Authorization: `Bearer ${token}` };
+  if (!(await verifyReview(reviewId, headers))) {
+    return res.status(404).json({ message: "That review is no longer available." });
+  }
+
+  const existingResponse = await supabaseRootFetch(
+    `/rest/v1/likes?review_id=eq.${encodeURIComponent(reviewId)}&user_id=eq.${encodeURIComponent(user.id)}&select=id&limit=1`,
+    { headers },
+  );
+  if (!existingResponse.ok) {
+    return res.status(502).json({ message: "We could not update this Helpful vote. Please try again." });
+  }
+  const existingRows = (await existingResponse.json()) as Array<{ id: string }>;
+
+  if (!existingRows.length) {
+    const insertResponse = await supabaseRootFetch("/rest/v1/likes", {
+      method: "POST",
+      headers: { ...headers, Prefer: "return=minimal", "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: user.id, review_id: reviewId }),
+    });
+    if (!insertResponse.ok) {
+      return res.status(502).json({ message: "We could not update this Helpful vote. Please try again." });
+    }
+  }
+
+  const likeCount = await getHelpfulCount(reviewId, headers);
+  if (likeCount === null) {
+    return res.status(502).json({ message: "Your Helpful vote was saved, but the new total could not be loaded." });
+  }
+  return res.json({ reviewId, helpful: true, likeCount });
+});
+
+router.delete("/reviews/:reviewId/helpful", async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const reviewId = req.params.reviewId;
+  if (!uuidPattern.test(reviewId)) {
+    return res.status(400).json({ message: "That review could not be found." });
+  }
+
+  const token = extractBearerToken(req)!;
+  const headers = { Authorization: `Bearer ${token}` };
+  const response = await supabaseRootFetch(
+    `/rest/v1/likes?review_id=eq.${encodeURIComponent(reviewId)}&user_id=eq.${encodeURIComponent(user.id)}`,
+    { method: "DELETE", headers },
+  );
+  if (!response.ok) {
+    return res.status(502).json({ message: "We could not update this Helpful vote. Please try again." });
+  }
+
+  const likeCount = await getHelpfulCount(reviewId, headers);
+  if (likeCount === null) {
+    return res.status(502).json({ message: "Your Helpful vote was removed, but the new total could not be loaded." });
+  }
+  return res.json({ reviewId, helpful: false, likeCount });
+});
+
 router.post("/reviews", async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -161,6 +249,9 @@ router.post("/reviews", async (req, res) => {
     createdAt: typeof r.created_at === "string" ? r.created_at : new Date().toISOString(),
     authorUsername: null,
     authorAvatarUrl: null,
+    likeCount: 0,
+    commentCount: 0,
+    viewerHasLiked: false,
   });
 });
 

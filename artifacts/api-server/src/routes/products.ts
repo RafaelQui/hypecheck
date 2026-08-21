@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { pgProxy } from "../lib/supabase";
+import { extractBearerToken, getAuthUser, pgProxy, supabaseRootFetch } from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -7,6 +7,41 @@ const router: IRouter = Router();
 // `product_summaries` adds rating/review_count/worth_the_hype on top.
 const SUMMARY_COLS = "id,name,description,price,category,image_url,store_url,retailer,rating,review_count,worth_the_hype";
 const FALLBACK_COLS = "id,name,description,price,category,image_url,store_url,retailer";
+
+async function countReviewRelations(table: "likes" | "comments", reviewIds: string[]) {
+  if (!reviewIds.length) return new Map<string, number>();
+
+  const response = await pgProxy(
+    `/rest/v1/${table}?review_id=in.(${reviewIds.map(encodeURIComponent).join(",")})&select=review_id`,
+  );
+  if (!response.ok) {
+    throw new Error(`Unable to load ${table} for product reviews (HTTP ${response.status}).`);
+  }
+
+  const rows = (await response.json()) as Array<{ review_id?: unknown }>;
+  return rows.reduce((counts, row) => {
+    const reviewId = typeof row.review_id === "string" ? row.review_id : "";
+    if (reviewId) counts.set(reviewId, (counts.get(reviewId) ?? 0) + 1);
+    return counts;
+  }, new Map<string, number>());
+}
+
+async function getViewerHelpfulReviewIds(req: Parameters<typeof getAuthUser>[0], reviewIds: string[]) {
+  const token = extractBearerToken(req);
+  if (!token || !reviewIds.length) return new Set<string>();
+
+  const auth = await getAuthUser(req);
+  if ("error" in auth) return new Set<string>();
+
+  const response = await supabaseRootFetch(
+    `/rest/v1/likes?user_id=eq.${encodeURIComponent(auth.user.id)}&review_id=in.(${reviewIds.map(encodeURIComponent).join(",")})&select=review_id`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) throw new Error(`Unable to load the viewer's Helpful votes (HTTP ${response.status}).`);
+
+  const rows = (await response.json()) as Array<{ review_id?: unknown }>;
+  return new Set(rows.map((row) => row.review_id).filter((id): id is string => typeof id === "string"));
+}
 
 /**
  * Map a raw Supabase row to a ProductSummary response object.
@@ -196,7 +231,21 @@ router.get("/products/:productId/reviews", async (req, res) => {
   const total = parseInt(contentRange.split("/")[1] ?? "-1", 10);
 
   const rows = (await response.json()) as Array<Record<string, unknown>>;
-  const items = mapReviews(rows);
+  let likeCounts = new Map<string, number>();
+  let commentCounts = new Map<string, number>();
+  let viewerHelpfulIds = new Set<string>();
+  try {
+    const reviewIds = rows.map((row) => String(row.id ?? "")).filter(Boolean);
+    [likeCounts, commentCounts, viewerHelpfulIds] = await Promise.all([
+      countReviewRelations("likes", reviewIds),
+      countReviewRelations("comments", reviewIds),
+      getViewerHelpfulReviewIds(req, reviewIds),
+    ]);
+  } catch (error) {
+    req.log.error({ error }, "Supabase review engagement load failed");
+    return res.status(502).json({ message: "Unable to load review activity right now." });
+  }
+  const items = mapReviews(rows, { likeCounts, commentCounts, viewerHelpfulIds });
 
   return res.json({ items, total: total >= 0 ? total : items.length });
 });
@@ -204,11 +253,15 @@ router.get("/products/:productId/reviews", async (req, res) => {
 // ---------------------------------------------------------------------------
 // Shared review row mapper (used by profile route too)
 // ---------------------------------------------------------------------------
-export function mapReviews(rows: Array<Record<string, unknown>>) {
+export function mapReviews(
+  rows: Array<Record<string, unknown>>,
+  counts: { likeCounts?: Map<string, number>; commentCounts?: Map<string, number>; viewerHelpfulIds?: Set<string> } = {},
+) {
   return rows.map((r) => {
     const profile = r.profiles as Record<string, unknown> | null | undefined;
+    const id = String(r.id ?? "");
     return {
-      id: String(r.id ?? ""),
+      id,
       productId: String(r.product_id ?? ""),
       userId: String(r.user_id ?? ""),
       rating: typeof r.rating === "number" ? r.rating : parseInt(String(r.rating ?? "0"), 10) || 0,
@@ -219,6 +272,9 @@ export function mapReviews(rows: Array<Record<string, unknown>>) {
       createdAt: String(r.created_at ?? ""),
       authorUsername: typeof profile?.username === "string" ? profile.username : null,
       authorAvatarUrl: typeof profile?.avatar_url === "string" ? profile.avatar_url : null,
+      likeCount: counts.likeCounts?.get(id) ?? 0,
+      commentCount: counts.commentCounts?.get(id) ?? 0,
+      viewerHasLiked: counts.viewerHelpfulIds?.has(id) ?? false,
     };
   });
 }

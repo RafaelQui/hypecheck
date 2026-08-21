@@ -485,6 +485,64 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
 
+  /reviews/{reviewId}/helpful:
+    post:
+      operationId: markReviewHelpful
+      tags: [reviews]
+      summary: Mark a review as helpful
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Helpful vote saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpfulVote"
+        "400":
+          description: Invalid review
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "404":
+          description: Review not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    delete:
+      operationId: removeReviewHelpful
+      tags: [reviews]
+      summary: Remove a helpful vote from a review
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: reviewId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Helpful vote removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelpfulVote"
+
   # ---------------------------------------------------------------------------
   # Profile
   # ---------------------------------------------------------------------------
@@ -916,6 +974,26 @@ components:
         authorAvatarUrl:
           type: string
           nullable: true
+        likeCount:
+          type: number
+          minimum: 0
+        commentCount:
+          type: number
+          minimum: 0
+        viewerHasLiked:
+          type: boolean
+
+    HelpfulVote:
+      type: object
+      required: [reviewId, helpful, likeCount]
+      properties:
+        reviewId:
+          type: string
+        helpful:
+          type: boolean
+        likeCount:
+          type: number
+          minimum: 0
 
     # -------------------------------------------------------------------------
     # Profile

@@ -115,6 +115,9 @@ export interface Review {
   createdAt: string;
   authorUsername?: string | null;
   authorAvatarUrl?: string | null;
+  likeCount?: number;
+  commentCount?: number;
+  viewerHasLiked?: boolean;
 }
 
 export interface UserProfile {
