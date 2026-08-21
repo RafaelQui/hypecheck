@@ -176,15 +176,20 @@ function WantsScreen({catalog,wants,onDetail,onRemove,onDiscover,isLoading,error
 
 function ReviewScreen({catalog,onSubmitted}:{catalog:Product[];onSubmitted:()=>void}) { const [rating,setRating]=useState(0); const [text,setText]=useState(''); const [worth,setWorth]=useState<boolean|null>(null); const [media,setMedia]=useState<ImagePicker.ImagePickerAsset|null>(null); const [mediaKind,setMediaKind]=useState<'image'|'video'|null>(null); const {session}=useAuth(); const create=useCreateReview(); const product=catalog[0]; const pick=async(kind:'image'|'video')=>{const permission=await ImagePicker.requestMediaLibraryPermissionsAsync();if(!permission.granted)return Alert.alert('Permission needed','Allow library access to add review media.');const result=await ImagePicker.launchImageLibraryAsync({mediaTypes:[kind==='image'?'images':'videos'] as any,quality:0.8});if(!result.canceled){setMedia(result.assets[0]);setMediaKind(kind);}}; const upload=async()=>{if(!media||!mediaKind)return null;const bucket=mediaKind==='image'?'review-images':'review-videos';const signed=await getUploadUrl({bucket,filename:media.fileName||`review-${Date.now()}`,contentType:media.mimeType||undefined});const response=await expoFetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':media.mimeType||'application/octet-stream'},body:new File(media.uri)});if(!response.ok)throw new Error('Media upload failed.');return signed.mediaUrl;}; const submit=async()=>{if(!session)return Alert.alert('Sign in to post','Create an account or sign in before posting a review.');if(!rating||worth===null||(!text.trim()&&!media))return Alert.alert('Almost there','Add a rating, choose worth it, and include a note, photo, or video.');try{const path=await upload();await create.mutateAsync({data:{productId:product.id,rating,worthIt:worth,reviewText:text.trim(),photoUrl:mediaKind==='image'?path:null,videoUrl:mediaKind==='video'?path:null}});Alert.alert('Review posted','Thanks for helping the community shop smarter.');onSubmitted();}catch(error){Alert.alert('Could not post review',error instanceof Error?error.message:'Please try again.');}}; return <ScrollView style={s.page} contentContainerStyle={s.scrollPad}><Header title="Share your take" subtitle="Help someone shop smarter."/><Text style={s.formLabel}>Product</Text><View style={s.selectBox}><Image source={product.image} style={s.selectImage}/><Text style={s.selectText}>{product.name}</Text><Feather name="check" size={18} color={colors.primary}/></View><Text style={s.formLabel}>Your rating</Text><View style={s.starPicker}>{[1,2,3,4,5].map(n=><Pressable key={n} onPress={()=>setRating(n)}><Ionicons name={n<=rating?'star':'star-outline'} size={35} color={colors.accentForeground}/></Pressable>)}</View><Text style={s.formLabel}>Worth it?</Text><View style={s.choiceRow}><Pressable onPress={()=>setWorth(true)} style={[s.choice,worth===true&&s.choiceActive]}><Ionicons name="thumbs-up-outline" size={18} color={worth===true?'#fff':colors.primary}/><Text style={[s.choiceText,worth===true&&s.choiceTextActive]}>Yes, worth it</Text></Pressable><Pressable onPress={()=>setWorth(false)} style={[s.choice,worth===false&&s.choiceActive]}><Ionicons name="thumbs-down-outline" size={18} color={worth===false?'#fff':colors.primary}/><Text style={[s.choiceText,worth===false&&s.choiceTextActive]}>Not really</Text></Pressable></View><Text style={s.formLabel}>Tell us more</Text><TextInput value={text} onChangeText={setText} multiline placeholder="What should shoppers know?" placeholderTextColor={colors.mutedForeground} style={[s.input,s.textArea]}/><View style={s.mediaRow}><Pressable onPress={()=>pick('image')} style={s.mediaButton}><Feather name="image" size={18} color={colors.primary}/><Text style={s.mediaText}>{mediaKind==='image'?'Photo added':'Add photo'}</Text></Pressable><Pressable onPress={()=>pick('video')} style={s.mediaButton}><Feather name="video" size={18} color={colors.primary}/><Text style={s.mediaText}>{mediaKind==='video'?'Video added':'Add video'}</Text></Pressable></View><Pressable onPress={submit} style={s.primaryButton}><Text style={s.primaryText}>{create.isPending?'Posting…':'Post Review'}</Text><Feather name="send" size={17} color="#fff"/></Pressable></ScrollView>; }
 
-function ProfileScreen({wants}:{wants:string[]}) {
+function ProfileScreen({catalog,wants,onDetail}:{catalog:Product[];wants:string[];onDetail:(product:Product)=>void}) {
   const {session,signOut}=useAuth();
   const {profile,setAvatarUrl,refreshProfile}=useProfile();
+  const insets=useSafeAreaInsets();
   const profileReviews=useGetProfileReviews(undefined,{query:{queryKey:getGetProfileReviewsQueryKey(),enabled:!!session,retry:false}});
   const updateProfile=useUpdateProfile();
+  const [activeTab,setActiveTab]=useState<'Reviews'|'Wants'|'Lists'>('Reviews');
   const [avatarPreview,setAvatarPreview]=useState<string|null>(null);
   const [avatarUploading,setAvatarUploading]=useState(false);
+  const [listModalVisible,setListModalVisible]=useState(false);
   const username=profile?.username||session?.user.email?.split('@')[0]||'Guest';
-  const live=profileReviews.data?.items;
+  const liveReviews=profileReviews.data?.items??[];
+  const reviewCount=profileReviews.data?.total??liveReviews.length;
+  const savedProducts=useMemo(()=>catalog.filter(product=>wants.includes(product.id)),[catalog,wants]);
   const avatarUri=avatarPreview??profile?.avatarUrl??null;
   const uploadAvatar=async()=>{
     if(!session)return Alert.alert('Sign in to add a photo','Create an account or sign in before updating your profile picture.');
@@ -214,7 +219,34 @@ function ProfileScreen({wants}:{wants:string[]}) {
       Alert.alert('Could not update photo',error instanceof Error?error.message:'The avatar upload failed without an error message.');
     }finally{setAvatarUploading(false);}
   };
-  return <ScrollView style={s.page} contentContainerStyle={s.scrollPad}><View style={s.profileTop}><Pressable disabled={avatarUploading} onPress={uploadAvatar} style={[s.profileAvatar,{overflow:'hidden'}]}>{avatarUri?<Image source={{uri:avatarUri}} style={s.profileAvatar}/>:<Text style={s.profileInitial}>{username[0].toUpperCase()}</Text>}</Pressable><View style={{flex:1}}><Text style={s.profileName}>{session?username:'Discover as a guest'}</Text><Text style={s.handle}>{session?`@${username}`:'Sign in to sync your profile'}</Text><Text style={s.bio}>{session?(avatarUploading?'Uploading your profile picture…':'Tap your avatar to change your profile picture.'):'Create an account to save products and share reviews.'}</Text></View>{session?<Pressable onPress={()=>signOut().catch(error=>Alert.alert('Could not sign out',error instanceof Error?error.message:'Please try again.'))} style={s.editButton}><Text style={s.editText}>Sign out</Text></Pressable>:null}</View><View style={s.profileStats}><View><Text style={s.statBig}>{live?.length??0}</Text><Text style={s.statLabel}>Reviews</Text></View><View><Text style={s.statBig}>—</Text><Text style={s.statLabel}>Followers</Text></View><View><Text style={s.statBig}>—</Text><Text style={s.statLabel}>Following</Text></View><View><Text style={s.statBig}>—</Text><Text style={s.statLabel}>Helpful votes</Text></View></View><View style={s.tabs}><Text style={[s.detailTabText,s.detailTabTextActive]}>Reviews</Text><Text style={s.detailTabText}>Wants ({wants.length})</Text><Text style={s.detailTabText}>Lists</Text></View>{live?.map(r=><View key={r.id} style={s.profileReview}><View style={s.reviewHead}><Text style={s.reviewerName}>Your review</Text><Rating value={r.rating} size={12}/></View><Text style={s.reviewText}>{r.reviewText}</Text><Text style={s.helpful}>{new Date(r.createdAt).toLocaleDateString()}</Text></View>)}</ScrollView>;
+  const selectTab=(nextTab:'Reviews'|'Wants'|'Lists')=>setActiveTab(nextTab);
+  const renderTabContent=()=>{
+    if(activeTab==='Reviews'){
+      if(!session||liveReviews.length===0)return <View style={profileStyles.emptyState}><Ionicons name="chatbubble-ellipses-outline" size={30} color={colors.primary}/><Text style={s.emptyTitle}>No reviews yet</Text><Text style={[s.muted,s.emptyCopy]}>{session?'Products you review will appear here.':'Sign in to see reviews connected to your profile.'}</Text></View>;
+      return <View style={profileStyles.tabContent}>{liveReviews.map(review=><View key={review.id} style={s.profileReview}>{review.photoUrl?<Image source={{uri:review.photoUrl}} style={profileStyles.reviewPhoto}/>:null}<View style={s.reviewHead}><Text style={s.reviewerName}>Your review</Text><Rating value={review.rating} size={12}/></View><Text style={s.reviewText}>{review.reviewText||'No written note.'}</Text><Text style={s.helpful}>{new Date(review.createdAt).toLocaleDateString()}</Text></View>)}</View>;
+    }
+    if(activeTab==='Wants'){
+      if(!session)return <View style={profileStyles.emptyState}><View style={s.emptyHeart}><Ionicons name="lock-closed-outline" size={28} color={colors.primary}/></View><Text style={s.emptyTitle}>Sign in to see your Wants</Text><Text style={[s.muted,s.emptyCopy]}>Create an account or sign in to view the products you have saved.</Text></View>;
+      if(savedProducts.length===0)return <View style={profileStyles.emptyState}><View style={s.emptyHeart}><Ionicons name="heart-outline" size={30} color={colors.primary}/></View><Text style={s.emptyTitle}>No Wants yet</Text><Text style={[s.muted,s.emptyCopy]}>Swipe right on products you like and they&apos;ll show up here.</Text></View>;
+      return <View style={profileStyles.tabContent}>{savedProducts.map(product=><Pressable key={product.id} testID={`profile-want-${product.id}`} accessibilityRole="button" accessibilityLabel={`Open ${product.name}`} onPress={()=>onDetail(product)} style={profileStyles.wantRow}><Image source={product.image} style={profileStyles.wantImage}/><View style={profileStyles.wantInfo}><Text style={s.resultCategory}>{product.category}</Text><Text numberOfLines={2} style={s.resultName}>{product.name}</Text><Text style={s.resultPrice}>${product.price.toFixed(2)}</Text></View><Feather name="chevron-right" size={19} color={colors.mutedForeground}/></Pressable>)}</View>;
+    }
+    return <View style={profileStyles.emptyState}><Ionicons name="list-outline" size={32} color={colors.primary}/><Text style={s.emptyTitle}>No lists yet</Text><Text style={[s.muted,s.emptyCopy]}>Create lists to organize products you want.</Text><Pressable testID="create-list-placeholder" accessibilityRole="button" onPress={()=>setListModalVisible(true)} style={[s.primaryButton,profileStyles.createListButton]}><Text style={s.primaryText}>Create List</Text><Feather name="plus" size={17} color="#fff"/></Pressable></View>;
+  };
+  return <ScrollView style={s.page} contentContainerStyle={[s.scrollPad,profileStyles.content,{paddingTop:insets.top+14}]}>
+    <View style={profileStyles.header}>
+      <Pressable disabled={avatarUploading} accessibilityRole="button" accessibilityLabel="Edit profile photo" onPress={uploadAvatar} style={[profileStyles.avatar,{overflow:'hidden'}]}>{avatarUri?<Image source={{uri:avatarUri}} style={profileStyles.avatarImage}/>:<Text style={s.profileInitial}>{username[0].toUpperCase()}</Text>}</Pressable>
+      <View style={profileStyles.identity}>
+        <Text style={s.profileName}>{session?(profile?.displayName||username):'Discover as a guest'}</Text>
+        <Text style={s.handle}>{session?`@${username}`:'Sign in to sync your profile'}</Text>
+        <Text style={s.bio}>{session?(profile?.bio||'No bio yet.'):'Create an account to save products and share reviews.'}</Text>
+      </View>
+    </View>
+    {session?<View style={profileStyles.actions}><Pressable testID="edit-profile" accessibilityRole="button" onPress={uploadAvatar} disabled={avatarUploading} style={profileStyles.editButton}><Feather name="edit-2" size={15} color={colors.primary}/><Text style={profileStyles.editText}>{avatarUploading?'Uploading…':'Edit profile'}</Text></Pressable><Pressable accessibilityRole="button" onPress={()=>signOut().catch(error=>Alert.alert('Could not sign out',error instanceof Error?error.message:'Please try again.'))} style={profileStyles.signOutButton}><Text style={profileStyles.signOutText}>Sign out</Text></Pressable></View>:null}
+    <View style={profileStyles.stats}>{[{label:'Reviews',value:reviewCount},{label:'Followers',value:0},{label:'Following',value:0},{label:'Helpful votes',value:0}].map(stat=><View key={stat.label} style={profileStyles.stat}><Text style={s.statBig}>{stat.value}</Text><Text style={s.statLabel}>{stat.label}</Text></View>)}</View>
+    <View style={profileStyles.tabs}>{(['Reviews','Wants','Lists'] as const).map(tabName=><Pressable key={tabName} testID={`profile-tab-${tabName.toLowerCase()}`} accessibilityRole="tab" accessibilityState={{selected:activeTab===tabName}} onPress={()=>selectTab(tabName)} style={profileStyles.tab}><Text style={[profileStyles.tabText,activeTab===tabName&&profileStyles.tabTextActive]}>{tabName==='Wants'?`Wants (${session?wants.length:0})`:tabName}</Text>{activeTab===tabName?<View style={profileStyles.tabIndicator}/>:null}</Pressable>)}</View>
+    {renderTabContent()}
+    <Modal transparent visible={listModalVisible} animationType="fade" onRequestClose={()=>setListModalVisible(false)}><View style={profileStyles.modalBackdrop}><View style={profileStyles.listModal}><Ionicons name="list-outline" size={28} color={colors.primary}/><Text style={profileStyles.modalTitle}>Lists are coming soon</Text><Text style={[s.muted,profileStyles.modalCopy]}>Custom Lists are not available in this prototype yet.</Text><Pressable testID="close-list-placeholder" accessibilityRole="button" onPress={()=>setListModalVisible(false)} style={s.primaryButton}><Text style={s.primaryText}>Got it</Text></Pressable></View></View></Modal>
+  </ScrollView>;
 }
 
 export default function DiscoverTab() {
@@ -236,7 +268,7 @@ export default function DiscoverTab() {
     {tab==='Search'&&<SearchScreen catalog={catalog} onDetail={setDetail}/>}
     {tab==='Review'&&<ReviewScreen catalog={catalog} onSubmitted={()=>setTab('Profile')}/>}
     {tab==='Wants'&&<WantsScreen catalog={catalog} wants={wants} onDetail={setDetail} onRemove={removeWantById} onDiscover={()=>setTab('Discover')} isLoading={!!session&&wantsQuery.isLoading} error={!!session&&wantsQuery.isError}/>}
-    {tab==='Profile'&&<ProfileScreen wants={wants}/>}
+    {tab==='Profile'&&<ProfileScreen catalog={catalog} wants={wants} onDetail={setDetail}/>}
     <View style={s.floatingNav}>{[['Discover','home'],['Search','search'],['Review','edit-3'],['Wants','heart'],['Profile','user']].map(([name,icon])=><Pressable key={name} onPress={()=>setTab(name)} style={s.navItem}><Feather name={icon as any} size={20} color={tab===name?colors.primary:colors.mutedForeground}/><Text style={[s.navLabel,tab===name&&s.navLabelActive]}>{name}</Text></Pressable>)}</View>
   </>;
 }
@@ -249,6 +281,37 @@ const passwordStyles = StyleSheet.create({
   field:{position:'relative'},
   input:{paddingRight:56},
   toggle:{position:'absolute',right:6,top:16,width:44,height:44,alignItems:'center',justifyContent:'center'},
+});
+
+const profileStyles = StyleSheet.create({
+  content:{paddingBottom:128},
+  header:{flexDirection:'row',alignItems:'flex-start',gap:16},
+  avatar:{width:80,height:80,borderRadius:40,backgroundColor:'#F4C8AE',alignItems:'center',justifyContent:'center',flexShrink:0},
+  avatarImage:{width:'100%',height:'100%',resizeMode:'cover'},
+  identity:{flex:1,paddingTop:3},
+  actions:{flexDirection:'row',alignItems:'center',gap:10,marginTop:17},
+  editButton:{minHeight:42,paddingHorizontal:14,borderRadius:13,borderWidth:1,borderColor:colors.primary,flexDirection:'row',alignItems:'center',justifyContent:'center',gap:7},
+  editText:{fontFamily:'Inter_700Bold',fontSize:13,color:colors.primary},
+  signOutButton:{minHeight:42,paddingHorizontal:8,justifyContent:'center'},
+  signOutText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:colors.mutedForeground},
+  stats:{flexDirection:'row',justifyContent:'space-between',paddingVertical:20,borderBottomWidth:1,borderColor:colors.border},
+  stat:{flex:1,alignItems:'center'},
+  tabs:{flexDirection:'row',borderBottomWidth:1,borderColor:colors.border},
+  tab:{flex:1,minHeight:48,alignItems:'center',justifyContent:'flex-end',position:'relative'},
+  tabText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:colors.mutedForeground,paddingBottom:12},
+  tabTextActive:{color:colors.primary},
+  tabIndicator:{position:'absolute',left:12,right:12,bottom:-1,height:3,borderRadius:3,backgroundColor:colors.primary},
+  tabContent:{paddingTop:3},
+  reviewPhoto:{width:'100%',height:160,borderRadius:14,marginBottom:12},
+  emptyState:{alignItems:'center',justifyContent:'center',paddingTop:50,paddingHorizontal:22,gap:9},
+  createListButton:{marginTop:10,minWidth:160},
+  wantRow:{flexDirection:'row',alignItems:'center',gap:12,paddingVertical:14,borderBottomWidth:1,borderColor:colors.border},
+  wantImage:{width:62,height:62,borderRadius:15},
+  wantInfo:{flex:1},
+  modalBackdrop:{flex:1,backgroundColor:'rgba(28,17,20,.42)',alignItems:'center',justifyContent:'center',padding:24},
+  listModal:{width:'100%',maxWidth:360,backgroundColor:colors.background,borderRadius:22,padding:24,alignItems:'center',gap:12},
+  modalTitle:{fontFamily:'Inter_700Bold',fontSize:20,color:colors.foreground},
+  modalCopy:{textAlign:'center',marginBottom:6},
 });
 
 const discoverStyles = StyleSheet.create({
