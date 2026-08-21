@@ -121,12 +121,22 @@ export interface UserProfile {
   id: string;
   email: string;
   username?: string | null;
+  displayName?: string | null;
+  bio?: string | null;
   avatarUrl?: string | null;
   createdAt: string;
 }
 
 export interface ProfileUpdateInput {
-  avatarUrl: string;
+  avatarUrl?: string;
+  displayName?: string;
+  username?: string;
+  bio?: string;
+}
+
+export interface UsernameAvailability {
+  username: string;
+  available: boolean;
 }
 
 export type UploadUrlRequestBucket = typeof UploadUrlRequestBucket[keyof typeof UploadUrlRequestBucket];
@@ -195,6 +205,10 @@ offset?: number;
 export type GetProductReviews200 = {
   items: Review[];
   total: number;
+};
+
+export type CheckUsernameAvailabilityParams = {
+username: string;
 };
 
 export type GetProfileReviewsParams = {

@@ -9,6 +9,7 @@
 export * from './authCredentials';
 export * from './authSession';
 export * from './authUser';
+export * from './checkUsernameAvailabilityParams';
 export * from './errorBody';
 export * from './getProductReviews200';
 export * from './getProductReviewsParams';
@@ -29,6 +30,7 @@ export * from './signupResult';
 export * from './uploadUrlRequest';
 export * from './uploadUrlRequestBucket';
 export * from './uploadUrlResponse';
+export * from './usernameAvailability';
 export * from './userProfile';
 export * from './wantInput';
 export * from './wantItem';

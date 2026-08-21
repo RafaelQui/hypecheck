@@ -7,7 +7,7 @@ import { File } from 'expo-file-system';
 import { fetch as expoFetch } from 'expo/fetch';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import palette from '@/constants/colors';
-import { getGetProductQueryKey, getGetProfileReviewsQueryKey, getGetWantsQueryKey, getGetProductReviewsQueryKey, getListProductsQueryKey, getUploadUrl, useCreateReview, useGetProduct, useGetProductReviews, useGetProfileReviews, useGetWants, useListProducts, useRemoveWant, useSaveWant, useUpdateProfile, type ProductSummary } from '@workspace/api-client-react';
+import { getCheckUsernameAvailabilityQueryKey, getGetProductQueryKey, getGetProfileReviewsQueryKey, getGetWantsQueryKey, getGetProductReviewsQueryKey, getListProductsQueryKey, getUploadUrl, useCheckUsernameAvailability, useCreateReview, useGetProduct, useGetProductReviews, useGetProfileReviews, useGetWants, useListProducts, useRemoveWant, useSaveWant, useUpdateProfile, type ProductSummary } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/contexts/ProfileContext';
 const colors = palette.light;
@@ -178,7 +178,7 @@ function ReviewScreen({catalog,onSubmitted}:{catalog:Product[];onSubmitted:()=>v
 
 function ProfileScreen({catalog,wants,onDetail}:{catalog:Product[];wants:string[];onDetail:(product:Product)=>void}) {
   const {session,signOut}=useAuth();
-  const {profile,setAvatarUrl,refreshProfile}=useProfile();
+  const {profile,setProfile,refreshProfile}=useProfile();
   const insets=useSafeAreaInsets();
   const profileReviews=useGetProfileReviews(undefined,{query:{queryKey:getGetProfileReviewsQueryKey(),enabled:!!session,retry:false}});
   const updateProfile=useUpdateProfile();
@@ -186,7 +186,15 @@ function ProfileScreen({catalog,wants,onDetail}:{catalog:Product[];wants:string[
   const [avatarPreview,setAvatarPreview]=useState<string|null>(null);
   const [avatarUploading,setAvatarUploading]=useState(false);
   const [listModalVisible,setListModalVisible]=useState(false);
+  const [editProfileVisible,setEditProfileVisible]=useState(false);
+  const [draftDisplayName,setDraftDisplayName]=useState('');
+  const [draftUsername,setDraftUsername]=useState('');
+  const [draftBio,setDraftBio]=useState('');
   const username=profile?.username||session?.user.email?.split('@')[0]||'Guest';
+  const normalizedDraftUsername=draftUsername.trim().toLowerCase();
+  const validDraftUsername=/^[a-z0-9][a-z0-9_.-]{2,23}$/.test(normalizedDraftUsername);
+  const usernameChanged=normalizedDraftUsername!==profile?.username;
+  const usernameAvailability=useCheckUsernameAvailability({username:normalizedDraftUsername},{query:{queryKey:getCheckUsernameAvailabilityQueryKey({username:normalizedDraftUsername}),enabled:!!session&&editProfileVisible&&validDraftUsername&&usernameChanged,retry:false}});
   const liveReviews=profileReviews.data?.items??[];
   const reviewCount=profileReviews.data?.total??liveReviews.length;
   const savedProducts=useMemo(()=>catalog.filter(product=>wants.includes(product.id)),[catalog,wants]);
@@ -199,25 +207,49 @@ function ProfileScreen({catalog,wants,onDetail}:{catalog:Product[];wants:string[
     if(result.canceled)return;
     const asset=result.assets?.[0];
     if(!asset?.uri)return Alert.alert('Could not read photo','Expo did not return a local image URI.');
-    console.log('[HypeCheck avatar] selected image URI',asset.uri);
     setAvatarPreview(asset.uri);
     setAvatarUploading(true);
     try{
       const signed=await getUploadUrl({bucket:'avatars',filename:asset.fileName||`avatar-${Date.now()}.jpg`,contentType:asset.mimeType||'image/jpeg'});
-      console.log('[HypeCheck avatar] signed Storage path',signed.storagePath);
       const response=await expoFetch(signed.uploadUrl,{method:'PUT',headers:{'Content-Type':asset.mimeType||'image/jpeg'},body:new File(asset.uri)});
       if(!response.ok){const body=await response.text().catch(()=>'' );throw new Error(`Avatar Storage upload failed (HTTP ${response.status})${body?`: ${body}`:''}`);}
       const updated=await updateProfile.mutateAsync({data:{avatarUrl:signed.mediaUrl}});
       const avatarUrl=updated.avatarUrl||signed.mediaUrl;
       setAvatarPreview(avatarUrl);
-      setAvatarUrl(avatarUrl);
+      setProfile(updated);
       await refreshProfile();
-      Alert.alert('Profile photo updated','Your new profile picture was saved to Supabase.');
+      Alert.alert('Profile updated','Your profile photo has been updated.');
     }catch(error){
       setAvatarPreview(null);
       console.error('[HypeCheck avatar] upload failed',error);
       Alert.alert('Could not update photo',error instanceof Error?error.message:'The avatar upload failed without an error message.');
     }finally{setAvatarUploading(false);}
+  };
+  const openProfileEditor=()=>{
+    if(!profile)return;
+    setDraftDisplayName(profile.displayName||'');
+    setDraftUsername(profile.username||'');
+    setDraftBio(profile.bio||'');
+    setEditProfileVisible(true);
+  };
+  const saveProfile=async()=>{
+    const displayName=draftDisplayName.trim();
+    const bio=draftBio.trim();
+    if(!displayName)return Alert.alert('Add a display name','Enter the name you want people to see.');
+    if(displayName.length>60)return Alert.alert('Display name is too long','Keep your display name to 60 characters or fewer.');
+    if(!validDraftUsername)return Alert.alert('Choose a valid username','Use 3–24 lowercase letters, numbers, periods, hyphens, or underscores.');
+    if(draftBio.length>150)return Alert.alert('Bio is too long','Keep your bio to 150 characters or fewer.');
+    if(usernameChanged&&usernameAvailability.isFetching)return Alert.alert('Checking username','Please wait while we check whether this username is available.');
+    if(usernameChanged&&usernameAvailability.data&&!usernameAvailability.data.available)return Alert.alert('Username unavailable','That username is already taken. Try another one.');
+    try{
+      const updated=await updateProfile.mutateAsync({data:{displayName,username:normalizedDraftUsername,bio}});
+      setProfile(updated);
+      setEditProfileVisible(false);
+      await refreshProfile();
+      Alert.alert('Profile updated','Your changes have been saved.');
+    }catch(error){
+      Alert.alert('Could not update profile',error instanceof Error?error.message:'Please try again.');
+    }
   };
   const selectTab=(nextTab:'Reviews'|'Wants'|'Lists')=>setActiveTab(nextTab);
   const renderTabContent=()=>{
@@ -241,11 +273,33 @@ function ProfileScreen({catalog,wants,onDetail}:{catalog:Product[];wants:string[
         <Text style={s.bio}>{session?(profile?.bio||'No bio yet.'):'Create an account to save products and share reviews.'}</Text>
       </View>
     </View>
-    {session?<View style={profileStyles.actions}><Pressable testID="edit-profile" accessibilityRole="button" onPress={uploadAvatar} disabled={avatarUploading} style={profileStyles.editButton}><Feather name="edit-2" size={15} color={colors.primary}/><Text style={profileStyles.editText}>{avatarUploading?'Uploading…':'Edit profile'}</Text></Pressable><Pressable accessibilityRole="button" onPress={()=>signOut().catch(error=>Alert.alert('Could not sign out',error instanceof Error?error.message:'Please try again.'))} style={profileStyles.signOutButton}><Text style={profileStyles.signOutText}>Sign out</Text></Pressable></View>:null}
+    {session?<View style={profileStyles.actions}><Pressable testID="edit-profile" accessibilityRole="button" onPress={openProfileEditor} style={profileStyles.editButton}><Feather name="edit-2" size={15} color={colors.primary}/><Text style={profileStyles.editText}>Edit profile</Text></Pressable><Pressable accessibilityRole="button" onPress={()=>signOut().catch(error=>Alert.alert('Could not sign out',error instanceof Error?error.message:'Please try again.'))} style={profileStyles.signOutButton}><Text style={profileStyles.signOutText}>Sign out</Text></Pressable></View>:null}
     <View style={profileStyles.stats}>{[{label:'Reviews',value:reviewCount},{label:'Followers',value:0},{label:'Following',value:0},{label:'Helpful votes',value:0}].map(stat=><View key={stat.label} style={profileStyles.stat}><Text style={s.statBig}>{stat.value}</Text><Text style={s.statLabel}>{stat.label}</Text></View>)}</View>
     <View style={profileStyles.tabs}>{(['Reviews','Wants','Lists'] as const).map(tabName=><Pressable key={tabName} testID={`profile-tab-${tabName.toLowerCase()}`} accessibilityRole="tab" accessibilityState={{selected:activeTab===tabName}} onPress={()=>selectTab(tabName)} style={profileStyles.tab}><Text style={[profileStyles.tabText,activeTab===tabName&&profileStyles.tabTextActive]}>{tabName==='Wants'?`Wants (${session?wants.length:0})`:tabName}</Text>{activeTab===tabName?<View style={profileStyles.tabIndicator}/>:null}</Pressable>)}</View>
     {renderTabContent()}
     <Modal transparent visible={listModalVisible} animationType="fade" onRequestClose={()=>setListModalVisible(false)}><View style={profileStyles.modalBackdrop}><View style={profileStyles.listModal}><Ionicons name="list-outline" size={28} color={colors.primary}/><Text style={profileStyles.modalTitle}>Lists are coming soon</Text><Text style={[s.muted,profileStyles.modalCopy]}>Custom Lists are not available in this prototype yet.</Text><Pressable testID="close-list-placeholder" accessibilityRole="button" onPress={()=>setListModalVisible(false)} style={s.primaryButton}><Text style={s.primaryText}>Got it</Text></Pressable></View></View></Modal>
+    <Modal transparent visible={editProfileVisible} animationType="slide" onRequestClose={()=>setEditProfileVisible(false)}>
+      <View style={profileStyles.editorBackdrop}>
+        <ScrollView style={profileStyles.editorScrollView} contentContainerStyle={profileStyles.editorScroll} keyboardShouldPersistTaps="handled">
+          <View style={[profileStyles.editorModal,{paddingTop:insets.top+8}]}>
+            <View style={profileStyles.editorHeader}><Pressable testID="cancel-edit-profile-top" accessibilityRole="button" accessibilityLabel="Back to profile" onPress={()=>setEditProfileVisible(false)} style={profileStyles.closeButton}><Feather name="arrow-left" size={22} color={colors.foreground}/></Pressable><Text style={profileStyles.modalTitle}>Edit profile</Text><View style={profileStyles.headerSpacer}/></View>
+            <View style={profileStyles.photoEditor}><View style={profileStyles.editorAvatarWrap}><Pressable testID="change-profile-photo" disabled={avatarUploading} accessibilityRole="button" accessibilityLabel="Change profile photo" onPress={uploadAvatar} style={[profileStyles.avatar,profileStyles.editorAvatar,{overflow:'hidden'}]}>{avatarUri?<Image source={{uri:avatarUri}} style={profileStyles.avatarImage}/>:<Text style={s.profileInitial}>{username[0].toUpperCase()}</Text>}<View style={profileStyles.cameraBadge}><Feather name="camera" size={14} color="#fff"/></View></Pressable></View><View style={profileStyles.photoEditorCopy}><Text style={profileStyles.fieldLabel}>Profile photo</Text><Pressable disabled={avatarUploading} accessibilityRole="button" onPress={uploadAvatar}><Text style={profileStyles.changePhotoText}>{avatarUploading?'Uploading…':'Change photo'}</Text></Pressable></View></View>
+            <Text style={profileStyles.fieldLabel}>Display name</Text>
+            <TextInput testID="edit-profile-display-name" value={draftDisplayName} onChangeText={setDraftDisplayName} maxLength={60} placeholder="Your name" placeholderTextColor={colors.mutedForeground} style={profileStyles.editorInput}/>
+            <Text style={profileStyles.fieldLabel}>Username</Text>
+            <View style={profileStyles.usernameInputRow}><Text style={profileStyles.usernamePrefix}>@</Text><TextInput testID="edit-profile-username" value={draftUsername} onChangeText={setDraftUsername} autoCapitalize="none" autoCorrect={false} maxLength={24} placeholder="your-username" placeholderTextColor={colors.mutedForeground} style={profileStyles.usernameInput}/></View>
+            {normalizedDraftUsername&&!validDraftUsername?<Text style={profileStyles.validationText}>Use 3–24 lowercase letters, numbers, periods, hyphens, or underscores.</Text>:null}
+            {validDraftUsername&&usernameChanged&&usernameAvailability.isFetching?<Text style={profileStyles.mutedHint}>Checking username…</Text>:null}
+            {validDraftUsername&&usernameChanged&&usernameAvailability.data?.available?<Text style={profileStyles.availableText}>Username is available</Text>:null}
+            {validDraftUsername&&usernameChanged&&usernameAvailability.data&&!usernameAvailability.data.available?<Text style={profileStyles.validationText}>That username is already taken.</Text>:null}
+            {validDraftUsername&&usernameChanged&&usernameAvailability.isError?<Text style={profileStyles.validationText}>Couldn&apos;t check this username yet. We&apos;ll confirm it when you save.</Text>:null}
+            <View style={profileStyles.bioLabelRow}><Text style={profileStyles.fieldLabel}>Bio</Text><Text style={profileStyles.characterCount}>{draftBio.length}/150</Text></View>
+            <TextInput testID="edit-profile-bio" value={draftBio} onChangeText={setDraftBio} maxLength={150} multiline textAlignVertical="top" placeholder="Tell people a little about yourself" placeholderTextColor={colors.mutedForeground} style={[profileStyles.editorInput,profileStyles.bioInput]}/>
+            <View style={profileStyles.editorActions}><Pressable testID="cancel-edit-profile" accessibilityRole="button" onPress={()=>setEditProfileVisible(false)} style={profileStyles.cancelButton}><Text style={profileStyles.cancelText}>Cancel</Text></Pressable><Pressable testID="save-profile" accessibilityRole="button" disabled={updateProfile.isPending||avatarUploading} onPress={saveProfile} style={[s.primaryButton,profileStyles.saveButton,(updateProfile.isPending||avatarUploading)&&profileStyles.saveDisabled]}><Text style={s.primaryText}>{updateProfile.isPending?'Saving…':'Save changes'}</Text></Pressable></View>
+          </View>
+        </ScrollView>
+      </View>
+    </Modal>
   </ScrollView>;
 }
 
@@ -312,6 +366,35 @@ const profileStyles = StyleSheet.create({
   listModal:{width:'100%',maxWidth:360,backgroundColor:colors.background,borderRadius:22,padding:24,alignItems:'center',gap:12},
   modalTitle:{fontFamily:'Inter_700Bold',fontSize:20,color:colors.foreground},
   modalCopy:{textAlign:'center',marginBottom:6},
+  editorBackdrop:{flex:1,backgroundColor:colors.background},
+  editorScrollView:{flex:1},
+  editorScroll:{flexGrow:1,justifyContent:'flex-end'},
+  editorModal:{flex:1,backgroundColor:colors.background,paddingHorizontal:22,paddingBottom:34},
+  editorHeader:{flexDirection:'row',alignItems:'center',justifyContent:'space-between',marginBottom:18},
+  closeButton:{width:42,height:42,borderRadius:21,backgroundColor:colors.muted,alignItems:'center',justifyContent:'center'},
+  headerSpacer:{width:42,height:42},
+  photoEditor:{flexDirection:'row',alignItems:'center',gap:14,marginBottom:19},
+  editorAvatarWrap:{position:'relative'},
+  editorAvatar:{width:66,height:66,borderRadius:33},
+  cameraBadge:{position:'absolute',right:-2,bottom:-2,width:25,height:25,borderRadius:13,backgroundColor:colors.primary,borderWidth:2,borderColor:colors.background,alignItems:'center',justifyContent:'center'},
+  photoEditorCopy:{gap:5},
+  fieldLabel:{fontFamily:'Inter_700Bold',fontSize:13,color:colors.foreground},
+  changePhotoText:{fontFamily:'Inter_700Bold',fontSize:13,color:colors.primary},
+  editorInput:{backgroundColor:'#fff',borderWidth:1,borderColor:colors.border,borderRadius:14,minHeight:50,paddingHorizontal:14,fontFamily:'Inter_400Regular',fontSize:15,color:colors.foreground,marginTop:8,marginBottom:5},
+  usernameInputRow:{flexDirection:'row',alignItems:'center',backgroundColor:'#fff',borderWidth:1,borderColor:colors.border,borderRadius:14,minHeight:50,marginTop:8,marginBottom:5,paddingLeft:14},
+  usernamePrefix:{fontFamily:'Inter_700Bold',fontSize:15,color:colors.mutedForeground},
+  usernameInput:{flex:1,minHeight:48,paddingHorizontal:6,fontFamily:'Inter_400Regular',fontSize:15,color:colors.foreground},
+  validationText:{fontFamily:'Inter_500Medium',fontSize:12,lineHeight:17,color:'#C34141',marginBottom:9},
+  mutedHint:{fontFamily:'Inter_500Medium',fontSize:12,lineHeight:17,color:colors.mutedForeground,marginBottom:9},
+  availableText:{fontFamily:'Inter_600SemiBold',fontSize:12,lineHeight:17,color:'#138A62',marginBottom:9},
+  bioLabelRow:{flexDirection:'row',justifyContent:'space-between',alignItems:'center',marginTop:8},
+  characterCount:{fontFamily:'Inter_500Medium',fontSize:12,color:colors.mutedForeground},
+  bioInput:{height:108,paddingTop:13},
+  editorActions:{flexDirection:'row',gap:10,marginTop:17},
+  cancelButton:{flex:1,minHeight:54,borderWidth:1,borderColor:colors.border,borderRadius:16,alignItems:'center',justifyContent:'center'},
+  cancelText:{fontFamily:'Inter_700Bold',fontSize:15,color:colors.foreground},
+  saveButton:{flex:1},
+  saveDisabled:{opacity:.55},
 });
 
 const discoverStyles = StyleSheet.create({

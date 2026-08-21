@@ -278,6 +278,8 @@ export const GetProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "username": zod.string().nullish(),
+  "displayName": zod.string().nullish(),
+  "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "createdAt": zod.string()
 })
@@ -287,15 +289,33 @@ export const GetProfileResponse = zod.object({
  * @summary Update the current user's profile
  */
 export const UpdateProfileBody = zod.object({
-  "avatarUrl": zod.string()
+  "avatarUrl": zod.string().optional(),
+  "displayName": zod.string().optional(),
+  "username": zod.string().optional(),
+  "bio": zod.string().optional()
 })
 
 export const UpdateProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "username": zod.string().nullish(),
+  "displayName": zod.string().nullish(),
+  "bio": zod.string().nullish(),
   "avatarUrl": zod.string().nullish(),
   "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Check whether a normalized username can be used by the current user
+ */
+export const CheckUsernameAvailabilityQueryParams = zod.object({
+  "username": zod.coerce.string()
+})
+
+export const CheckUsernameAvailabilityResponse = zod.object({
+  "username": zod.string(),
+  "available": zod.boolean()
 })
 
 

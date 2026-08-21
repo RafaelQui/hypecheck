@@ -7,16 +7,11 @@ import {
 } from "@workspace/api-client-react";
 import { useAuth } from "@/contexts/AuthContext";
 
-type CurrentProfile = UserProfile & {
-  displayName: string | null;
-  bio: string | null;
-};
-
 type ProfileState = {
-  profile: CurrentProfile | null;
+  profile: UserProfile | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
-  setAvatarUrl: (avatarUrl: string) => void;
+  setProfile: (profile: UserProfile) => void;
 };
 
 const ProfileContext = createContext<ProfileState | null>(null);
@@ -37,25 +32,14 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const currentProfile =
     session && profileQuery.data?.id === session.user.id ? profileQuery.data : null;
 
-  const profile = useMemo<CurrentProfile | null>(
-    () =>
-      currentProfile
-        ? {
-            ...currentProfile,
-            displayName: currentProfile.username ?? null,
-            bio: null,
-          }
-        : null,
-    [currentProfile],
-  );
+  const profile = currentProfile ?? null;
 
-  const setAvatarUrl = useCallback(
-    (avatarUrl: string) => {
-      queryClient.setQueryData<UserProfile>(getGetProfileQueryKey(), (current) =>
-        current ? { ...current, avatarUrl } : current,
-      );
+  const setProfile = useCallback(
+    (nextProfile: UserProfile) => {
+      if (session?.user.id !== nextProfile.id) return;
+      queryClient.setQueryData<UserProfile>(getGetProfileQueryKey(), nextProfile);
     },
-    [queryClient],
+    [queryClient, session?.user.id],
   );
 
   const refreshProfile = useCallback(async () => {
@@ -68,9 +52,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       profile,
       isLoading: profileQuery.isLoading,
       refreshProfile,
-      setAvatarUrl,
+      setProfile,
     }),
-    [profile, profileQuery.isLoading, refreshProfile, setAvatarUrl],
+    [profile, profileQuery.isLoading, refreshProfile, setProfile],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

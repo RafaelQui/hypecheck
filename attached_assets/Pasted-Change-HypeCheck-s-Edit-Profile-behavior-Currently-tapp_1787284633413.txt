@@ -1,0 +1,67 @@
+Change HypeCheck's Edit Profile behavior.
+
+Currently, tapping "Edit profile" immediately opens the phone's photo library. This is incorrect.
+
+Do not redesign the main Profile screen.
+
+When the user taps "Edit profile", open a dedicated Edit Profile screen.
+
+The Edit Profile screen should contain:
+
+1. Current profile photo at the top.
+   - Show the user's existing profiles.avatar_url.
+   - Add a small camera/edit icon.
+   - ONLY tapping the profile photo or "Change photo" should open the phone's photo library.
+   - Upload a selected photo using the existing Supabase avatar flow.
+
+2. Display Name
+   - Editable text field.
+   - Pre-fill with profiles.display_name.
+
+3. Username
+   - Editable text field.
+   - Pre-fill with profiles.username.
+   - Display @ visually, but don't accidentally store duplicate @ symbols.
+   - Usernames must be unique.
+   - Validate availability before saving.
+   - Allow letters, numbers, underscores and periods.
+   - Show a friendly error if the username is already taken.
+   - Do not expose raw Supabase/database errors.
+
+4. Bio
+   - Multiline editable field.
+   - Pre-fill with profiles.bio.
+   - Maximum 150 characters.
+   - Show character count.
+
+5. Save Changes button
+   - Update the authenticated user's row in public.profiles.
+   - Update display_name, username, bio and avatar_url when applicable.
+   - Show a loading state while saving.
+   - Disable duplicate submissions.
+   - On success, return to Profile and immediately show the updated information.
+   - The changes must persist after closing/reopening the app.
+
+6. Cancel/back button
+   - Return to Profile without saving unsaved text changes.
+
+IMPORTANT:
+Use the existing authenticated user's UUID.
+Respect existing Supabase RLS.
+Do not use a service-role key.
+Do not create a second profile table.
+Do not store profile information only locally.
+All screens showing the current user's avatar/name/username should use the updated shared profile data.
+
+Also change production-facing success messages:
+Do not say "saved to Supabase."
+Use user-friendly messages such as:
+"Profile updated."
+
+Test everything on Expo Go.
+
+Tell me:
+- which files changed
+- how username uniqueness is checked
+- whether profile changes persist in Supabase
+- whether the Discover avatar/profile information updates after editing

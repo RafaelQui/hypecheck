@@ -6,9 +6,7 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface ProfileUpdateInput {
-  avatarUrl?: string;
-  displayName?: string;
-  username?: string;
-  bio?: string;
+export interface UsernameAvailability {
+  username: string;
+  available: boolean;
 }

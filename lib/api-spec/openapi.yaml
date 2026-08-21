@@ -552,6 +552,45 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
 
+  /profile/username-availability:
+    get:
+      operationId: checkUsernameAvailability
+      tags: [profile]
+      summary: Check whether a normalized username can be used by the current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Username availability
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UsernameAvailability"
+        "400":
+          description: Invalid username
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
   /profile/reviews:
     get:
       operationId: getProfileReviews
@@ -892,6 +931,12 @@ components:
         username:
           type: string
           nullable: true
+        displayName:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
         avatarUrl:
           type: string
           nullable: true
@@ -900,10 +945,25 @@ components:
 
     ProfileUpdateInput:
       type: object
-      required: [avatarUrl]
+      minProperties: 1
       properties:
         avatarUrl:
           type: string
+        displayName:
+          type: string
+        username:
+          type: string
+        bio:
+          type: string
+
+    UsernameAvailability:
+      type: object
+      required: [username, available]
+      properties:
+        username:
+          type: string
+        available:
+          type: boolean
 
     # -------------------------------------------------------------------------
     # Media

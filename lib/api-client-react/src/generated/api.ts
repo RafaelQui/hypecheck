@@ -23,6 +23,7 @@ import type {
   AuthCredentials,
   AuthSession,
   AuthUser,
+  CheckUsernameAvailabilityParams,
   ErrorBody,
   GetProductReviews200,
   GetProductReviewsParams,
@@ -42,6 +43,7 @@ import type {
   UploadUrlRequest,
   UploadUrlResponse,
   UserProfile,
+  UsernameAvailability,
   WantInput,
   WantItem
 } from './api.schemas';
@@ -1206,6 +1208,90 @@ export const useUpdateProfile = <TError = ErrorType<ErrorBody>,
       > => {
       return useMutation(getUpdateProfileMutationOptions(options));
     }
+
+export const getCheckUsernameAvailabilityUrl = (params: CheckUsernameAvailabilityParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/profile/username-availability?${stringifiedParams}` : `/api/profile/username-availability`
+}
+
+/**
+ * @summary Check whether a normalized username can be used by the current user
+ */
+export const checkUsernameAvailability = async (params: CheckUsernameAvailabilityParams, options?: Parameters<typeof customFetch>[1]): Promise<UsernameAvailability> => {
+
+  return customFetch<UsernameAvailability>(getCheckUsernameAvailabilityUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCheckUsernameAvailabilityQueryKey = (params?: CheckUsernameAvailabilityParams,) => {
+    return [
+    `/api/profile/username-availability`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCheckUsernameAvailabilityQueryOptions = <TData = Awaited<ReturnType<typeof checkUsernameAvailability>>, TError = ErrorType<ErrorBody>>(params: CheckUsernameAvailabilityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkUsernameAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCheckUsernameAvailabilityQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof checkUsernameAvailability>>> = ({ signal }) => checkUsernameAvailability(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof checkUsernameAvailability>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CheckUsernameAvailabilityQueryResult = NonNullable<Awaited<ReturnType<typeof checkUsernameAvailability>>>
+export type CheckUsernameAvailabilityQueryError = ErrorType<ErrorBody>
+
+
+/**
+ * @summary Check whether a normalized username can be used by the current user
+ */
+
+export function useCheckUsernameAvailability<TData = Awaited<ReturnType<typeof checkUsernameAvailability>>, TError = ErrorType<ErrorBody>>(
+ params: CheckUsernameAvailabilityParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof checkUsernameAvailability>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCheckUsernameAvailabilityQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetProfileReviewsUrl = (params?: GetProfileReviewsParams,) => {
   const normalizedParams = new URLSearchParams();
