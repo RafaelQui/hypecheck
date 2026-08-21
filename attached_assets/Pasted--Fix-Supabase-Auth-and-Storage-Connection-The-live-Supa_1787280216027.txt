@@ -1,0 +1,156 @@
+# Fix Supabase Auth and Storage Connection
+
+The live Supabase database catalog is now confirmed working.
+
+Products and product_summaries are successfully loading from the live Supabase project.
+
+Now fix the remaining Supabase connection so HypeCheck can use Supabase Auth and Supabase Storage.
+
+IMPORTANT:
+Do not redesign the app.
+Do not change the existing database schema.
+Do not create duplicate tables.
+Do not re-add mock product fallbacks.
+
+## Goal
+
+The app must be able to access:
+
+* Supabase Auth `/auth/v1/*`
+* Supabase Storage `/storage/v1/*`
+* Existing PostgREST database APIs
+
+Use the existing Supabase Project URL and publishable/anon client key.
+
+NEVER use the Supabase service-role/secret key in the Expo/mobile client.
+
+## 1. Supabase client
+
+Use the official Supabase JavaScript client (`@supabase/supabase-js`) if appropriate for this Expo/React Native project.
+
+Configure one reusable Supabase client using:
+
+* SUPABASE_URL
+* SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY
+
+Make sure SUPABASE_URL is the PROJECT ROOT URL:
+
+https://[project-ref].supabase.co
+
+Do NOT append:
+
+/rest/v1
+/auth/v1
+/storage/v1
+
+to SUPABASE_URL.
+
+The Supabase client should construct those endpoints itself.
+
+## 2. Authentication
+
+Connect the existing signup/login UI to Supabase Auth.
+
+Verify:
+
+* Sign up
+* Sign in
+* Sign out
+* Session persistence
+* Session restoration after app restart
+* Refresh token handling
+
+For React Native/Expo, use the appropriate persistent storage adapter for Supabase Auth.
+
+Do not store passwords manually.
+
+After signup, verify the existing `handle_new_user` database trigger creates the matching row in `public.profiles`.
+
+## 3. Storage
+
+Connect review media to the existing Supabase Storage buckets:
+
+* review-videos
+* review-images
+* avatars
+
+Storage paths MUST begin with the authenticated user's UUID because the existing RLS policies require that.
+
+Examples:
+
+review-videos/{user_id}/{unique_filename}.mp4
+
+review-images/{user_id}/{unique_filename}.jpg
+
+avatars/{user_id}/{unique_filename}.jpg
+
+Do not use a service-role key to bypass Storage RLS.
+
+## 4. Review media
+
+When someone posts a video review:
+
+1. Confirm they are authenticated.
+2. Upload the video to `review-videos`.
+3. Obtain the appropriate public URL/path.
+4. Save it to the corresponding review's `video_url`.
+
+For review photos:
+
+1. Upload to `review-images`.
+2. Save the resulting URL/path to `photo_url`.
+
+## 5. Avatars
+
+When a user changes their profile picture:
+
+1. Upload the image to `avatars`.
+2. Save the resulting URL/path to `profiles.avatar_url`.
+
+## 6. Preserve working product connection
+
+The live product catalog is already working.
+
+Do NOT break:
+
+* products
+* product_summaries
+* Discover
+* Search
+* Product Details
+
+Keep the current removal of silent mock catalog fallbacks.
+
+## 7. Connection architecture
+
+If the current Replit Supabase proxy cannot access project-root `/auth/v1` and `/storage/v1` endpoints, implement the appropriate secure server-side connection/proxy required by this Replit environment.
+
+The mobile client must receive only:
+
+* user session information
+* safe product/review data
+* signed or public media URLs where appropriate
+
+Never expose a service-role key.
+
+## 8. Verify everything
+
+After implementing, test and report:
+
+Products: LIVE / NOT LIVE
+Product summaries: LIVE / NOT LIVE
+Signup: LIVE / NOT LIVE
+Login: LIVE / NOT LIVE
+Session persistence: LIVE / NOT LIVE
+Profiles: LIVE / NOT LIVE
+Wants: LIVE / NOT LIVE
+Reviews: LIVE / NOT LIVE
+Photo upload: LIVE / NOT LIVE
+Video upload: LIVE / NOT LIVE
+Avatar upload: LIVE / NOT LIVE
+
+Do not mark something LIVE unless you actually verified it against the connected Supabase project.
+
+If Replit's environment prevents you from completing a test, mark it UNVERIFIED and explain exactly what I need to do manually.
+
+Do not make unrelated changes.
