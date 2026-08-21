@@ -58,7 +58,7 @@ const reviews: Review[] = [
 function Rating({ value, size=13 }: { value:number; size?:number }) { return <View style={s.rating}>{[0,1,2,3,4].map(i => <Ionicons key={i} name={i < Math.round(value) ? 'star' : 'star-outline'} size={size} color={colors.accentForeground} />)}<Text style={s.ratingText}>{value.toFixed(1)}</Text></View>; }
 function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
   const insets=useSafeAreaInsets();
-  const player=useVideoPlayer({uri:videoUrl,contentType:'progressive'},videoPlayer=>{videoPlayer.loop=false;videoPlayer.allowsExternalPlayback=false;});
+  const player=useVideoPlayer(videoUrl,videoPlayer=>{videoPlayer.loop=false;videoPlayer.allowsExternalPlayback=false;});
   const [status,setStatus]=useState(player.status);
   const [isPlaying,setIsPlaying]=useState(player.playing);
   const [isFullscreen,setIsFullscreen]=useState(false);
