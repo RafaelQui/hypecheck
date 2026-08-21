@@ -14,7 +14,7 @@ router.post("/reviews", async (req, res) => {
   if (!productId) return res.status(400).json({ message: "productId is required." });
 
   const rating = typeof b.rating === "number" ? b.rating : parseInt(String(b.rating), 10);
-  if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+  if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
     return res.status(400).json({ message: "rating must be an integer between 1 and 5." });
   }
 
@@ -24,10 +24,13 @@ router.post("/reviews", async (req, res) => {
   const worthIt = b.worthIt as boolean;
 
   const reviewText = typeof b.reviewText === "string" ? b.reviewText.trim() : "";
-  if (!reviewText) return res.status(400).json({ message: "reviewText is required." });
-
-  const videoUrl = typeof b.videoUrl === "string" ? b.videoUrl : null;
-  const photoUrl = typeof b.photoUrl === "string" ? b.photoUrl : null;
+  const videoUrl = typeof b.videoUrl === "string" && b.videoUrl.trim() ? b.videoUrl.trim() : null;
+  const photoUrl = typeof b.photoUrl === "string" && b.photoUrl.trim() ? b.photoUrl.trim() : null;
+  if (!reviewText && !videoUrl && !photoUrl) {
+    return res.status(400).json({
+      message: "Add written review text, a photo, or a video before posting.",
+    });
+  }
 
   const token = extractBearerToken(req)!;
 

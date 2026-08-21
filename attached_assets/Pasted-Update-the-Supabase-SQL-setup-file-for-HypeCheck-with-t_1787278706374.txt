@@ -1,0 +1,140 @@
+Update the Supabase SQL setup file for HypeCheck with these security and schema improvements.
+
+Do NOT redesign the app.
+Do NOT change unrelated frontend behavior.
+Only update the Supabase setup SQL and any backend code that depends on these changes.
+
+1. PROFILE POLICY
+
+Currently the profile policy uses `for all`, which could allow a user to delete their own profile row and cascade-delete related data.
+
+Change profile permissions so:
+
+- Public profiles remain readable.
+- Authenticated users can UPDATE only their own profile.
+- Do not allow normal client-side deletion of profile rows.
+
+Replace the broad "Users manage their own profile" policy with an update-only policy.
+
+Use logic equivalent to:
+
+drop policy if exists "Users manage their own profile"
+  on public.profiles;
+
+drop policy if exists "Users update their own profile"
+  on public.profiles;
+
+create policy "Users update their own profile"
+  on public.profiles
+  for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
+
+2. REVIEW TEXT
+
+Currently `review_text` is required to contain text.
+
+I want HypeCheck to support video-only and photo-only reviews too.
+
+Change the reviews table definition so:
+
+review_text text not null default ''
+
+Remove the database constraint that requires non-empty review text.
+
+At the application level, validate that a review has at least one of:
+
+- written review text
+- photo
+- video
+
+A user should still be able to post:
+- rating
+- Worth It Yes/No
+- video
+
+without entering written text.
+
+3. STORAGE UPDATE POLICY
+
+Tighten the Storage update policy so users can only update files:
+
+- inside review-videos, review-images, or avatars
+- where the first folder name equals their authenticated user ID
+
+Use both USING and WITH CHECK.
+
+Use logic equivalent to:
+
+drop policy if exists "Users update own review media"
+  on storage.objects;
+
+create policy "Users update own review media"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+4. STORAGE DELETE POLICY
+
+Tighten the Storage delete policy in the same way.
+
+Use logic equivalent to:
+
+drop policy if exists "Users delete own review media"
+  on storage.objects;
+
+create policy "Users delete own review media"
+  on storage.objects
+  for delete
+  to authenticated
+  using (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+5. KEEP EVERYTHING ELSE
+
+Preserve the existing:
+
+- profiles table
+- products table
+- reviews table
+- wants table
+- likes table
+- comments table
+- follows table
+- foreign key relationships
+- indexes
+- automatic profile creation trigger
+- product_summaries view
+- seeded demo products
+- storage buckets
+- existing RLS policies that are not affected by the changes above
+- duplicate Want prevention
+- duplicate Like prevention
+- duplicate Follow prevention
+- rating validation
+- Worth the Hype calculation
+
+6. IMPORTANT
+
+The SQL file should remain safe to run more than once where practical.
+
+Do not run the SQL automatically against Supabase.
+
+After making the changes:
+
+1. Show me the final complete SQL setup file.
+2. Tell me exactly what changed.
+3. Tell me if any existing table created by the old SQL requires an ALTER TABLE statement because `CREATE TABLE IF NOT EXISTS` will not modify the existing schema.
+4. Include any necessary ALTER TABLE statements so I can safely run the corrected SQL in Supabase.
+5. Do not claim the live database is updated until I actually run the SQL myself.

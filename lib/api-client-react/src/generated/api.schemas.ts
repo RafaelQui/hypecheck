@@ -93,7 +93,7 @@ export interface ReviewInput {
      */
   rating: number;
   worthIt: boolean;
-  reviewText: string;
+  reviewText?: string;
   videoUrl?: string | null;
   photoUrl?: string | null;
 }

@@ -234,13 +234,13 @@ export const GetProductReviewsResponse = zod.object({
  */
 export const createReviewBodyRatingMax = 5;
 
-
+export const createReviewBodyReviewTextDefault = ``;
 
 export const CreateReviewBody = zod.object({
   "productId": zod.string(),
   "rating": zod.number().min(1).max(createReviewBodyRatingMax),
   "worthIt": zod.boolean(),
-  "reviewText": zod.string(),
+  "reviewText": zod.string().default(createReviewBodyReviewTextDefault),
   "videoUrl": zod.string().nullish(),
   "photoUrl": zod.string().nullish()
 })

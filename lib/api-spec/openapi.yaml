@@ -762,7 +762,7 @@ components:
     # -------------------------------------------------------------------------
     ReviewInput:
       type: object
-      required: [productId, rating, worthIt, reviewText]
+      required: [productId, rating, worthIt]
       properties:
         productId:
           type: string
@@ -774,6 +774,7 @@ components:
           type: boolean
         reviewText:
           type: string
+          default: ""
         videoUrl:
           type: string
           nullable: true

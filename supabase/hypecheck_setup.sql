@@ -33,11 +33,22 @@ create table if not exists public.reviews (
   user_id uuid not null references public.profiles(id) on delete cascade,
   rating integer not null check (rating between 1 and 5),
   worth_it boolean not null,
-  review_text text not null check (char_length(trim(review_text)) > 0),
+  review_text text not null default '',
   video_url text,
   photo_url text,
   created_at timestamptz not null default now()
 );
+
+-- Migration for databases created with an earlier HypeCheck setup.
+-- CREATE TABLE IF NOT EXISTS does not change an existing table definition.
+alter table if exists public.reviews
+  alter column review_text set default '';
+
+alter table if exists public.reviews
+  alter column review_text set not null;
+
+alter table if exists public.reviews
+  drop constraint if exists reviews_review_text_check;
 
 create table if not exists public.wants (
   id uuid primary key default gen_random_uuid(),
@@ -165,7 +176,13 @@ alter table public.follows enable row level security;
 drop policy if exists "Public profiles are readable" on public.profiles;
 create policy "Public profiles are readable" on public.profiles for select using (true);
 drop policy if exists "Users manage their own profile" on public.profiles;
-create policy "Users manage their own profile" on public.profiles for all using (auth.uid() = id) with check (auth.uid() = id);
+drop policy if exists "Users update their own profile" on public.profiles;
+create policy "Users update their own profile"
+  on public.profiles
+  for update
+  to authenticated
+  using (auth.uid() = id)
+  with check (auth.uid() = id);
 
 drop policy if exists "Products are readable" on public.products;
 create policy "Products are readable" on public.products for select using (true);
@@ -199,8 +216,24 @@ create policy "Users upload own review media" on storage.objects for insert to a
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 drop policy if exists "Users update own review media" on storage.objects;
-create policy "Users update own review media" on storage.objects for update to authenticated
-  using ((storage.foldername(name))[1] = auth.uid()::text);
+create policy "Users update own review media"
+  on storage.objects
+  for update
+  to authenticated
+  using (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  )
+  with check (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 drop policy if exists "Users delete own review media" on storage.objects;
-create policy "Users delete own review media" on storage.objects for delete to authenticated
-  using ((storage.foldername(name))[1] = auth.uid()::text);
+create policy "Users delete own review media"
+  on storage.objects
+  for delete
+  to authenticated
+  using (
+    bucket_id in ('review-videos', 'review-images', 'avatars')
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
