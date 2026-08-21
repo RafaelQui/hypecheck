@@ -1,0 +1,400 @@
+Connect the existing HypeCheck app to Supabase so Products, Wants, Reviews, and Media are stored and related correctly.
+
+IMPORTANT:
+Do not redesign the UI.
+Do not remove existing screens.
+Do not replace existing components unless necessary.
+Focus on backend functionality and database relationships.
+
+The goal is to make the existing prototype behave like a real app.
+
+1. Create / verify the Supabase database structure
+
+Create or verify these tables:
+
+profiles
+
+Fields:
+
+id UUID primary key
+username text
+display_name text
+bio text
+avatar_url text
+created_at timestamp
+
+The id should correspond to the authenticated Supabase user's ID.
+
+products
+
+Fields:
+
+id UUID primary key
+name text
+description text
+price numeric
+category text
+image_url text
+store_url text
+retailer text
+created_at timestamp
+reviews
+
+Fields:
+
+id UUID primary key
+product_id UUID foreign key referencing products.id
+user_id UUID foreign key referencing profiles.id
+rating integer
+worth_it boolean
+review_text text
+video_url text nullable
+photo_url text nullable
+created_at timestamp
+wants
+
+Fields:
+
+id UUID primary key
+user_id UUID foreign key referencing profiles.id
+product_id UUID foreign key referencing products.id
+created_at timestamp
+
+Create a unique constraint on:
+
+user_id + product_id
+
+so a user cannot save the same product twice.
+
+likes
+
+Fields:
+
+id UUID primary key
+user_id UUID
+review_id UUID
+created_at timestamp
+comments
+
+Fields:
+
+id UUID primary key
+user_id UUID
+review_id UUID
+comment_text text
+created_at timestamp
+follows
+
+Fields:
+
+id UUID primary key
+follower_id UUID
+following_id UUID
+created_at timestamp
+2. Connect authenticated users
+
+Use Supabase Auth.
+
+When a new user creates an account:
+
+Create the Supabase Auth user.
+Create a matching profile row.
+Use the authenticated user ID for all Wants, Reviews, Likes, Comments, and Follows.
+
+Do not hardcode a user ID.
+
+3. Make Wants fully use Supabase
+
+Currently the app may be saving Wants locally.
+
+Change this so authenticated users use Supabase as the source of truth.
+
+When a user swipes RIGHT on Discover:
+
+Insert a row into the wants table using:
+current user_id
+product_id
+Prevent duplicates.
+Update the Wants screen immediately.
+
+When the user opens the Wants screen:
+
+Query Supabase for all Wants belonging to the current user.
+Join the corresponding product information.
+Display those products.
+
+When the user removes a Want:
+
+Delete the matching row in Supabase.
+Update the UI immediately.
+
+After restarting the app, the Wants should still be present.
+
+Remove the message:
+
+"Saved locally — Supabase will sync when available."
+
+once Supabase syncing works correctly.
+
+4. Connect Reviews to Products
+
+Every review must belong to one product.
+
+When the user opens the Review screen and selects a product:
+
+Store that product's actual product.id.
+
+When they post a review, insert into the reviews table:
+
+product_id
+current user_id
+rating
+worth_it
+review_text
+video_url if uploaded
+photo_url if uploaded
+
+Do not save only the product name.
+
+The relationship must use the product ID.
+
+5. Make Reviews appear everywhere automatically
+
+After a review is posted:
+
+Product page
+
+Show all reviews where:
+
+reviews.product_id = current product.id
+
+User profile
+
+Show all reviews where:
+
+reviews.user_id = profile.id
+
+Discover
+
+When showing a product, load an appropriate review belonging to that product.
+
+If video reviews exist, prioritize a video review.
+
+If no video reviews exist, show a photo or text review.
+
+Do not use unrelated sample reviews.
+
+6. Calculate product ratings dynamically
+
+Do not manually hardcode product ratings.
+
+For each product calculate:
+
+average rating =
+average of all reviews.rating for that product
+
+Example:
+
+5, 4, 4, 5, 3
+
+Average = 4.2
+
+Display:
+
+⭐ 4.2
+
+Also show the number of reviews.
+
+Example:
+
+⭐ 4.2 (126)
+
+7. Calculate "Worth the Hype" dynamically
+
+The HypeCheck score should come from user reviews.
+
+Use the worth_it boolean.
+
+Formula:
+
+Worth the Hype percentage =
+(number of reviews where worth_it = true / total reviews that answered worth_it) × 100
+
+Example:
+
+89 users selected Yes
+11 selected No
+
+Display:
+
+🔥 89% Worth the Hype
+
+Round appropriately.
+
+If there are no reviews yet, show:
+
+"Not rated yet"
+
+Do not show fake HypeScores for products with no reviews.
+
+8. Set up Supabase Storage
+
+Create storage buckets for:
+
+review-videos
+review-images
+avatars
+
+When a user uploads a review video:
+
+Upload the actual video file to Supabase Storage.
+Retrieve its storage path or usable URL.
+Save that value in reviews.video_url.
+
+When a user uploads a photo:
+
+Upload it to review-images.
+Save its reference in reviews.photo_url.
+
+When a user uploads a profile picture:
+
+Upload it to avatars.
+Save its URL/path in profiles.avatar_url.
+
+Do not store raw video or image files directly in database columns.
+
+9. Preserve existing UI
+
+Use the existing HypeCheck screens:
+
+Discover
+Search
+Review
+Wants
+Profile
+
+Do not redesign them.
+
+Only replace mocked/local data with Supabase-backed data where appropriate.
+
+10. Seed products
+
+Keep existing sample products if needed, but insert them into the Supabase products table instead of relying only on hardcoded frontend arrays.
+
+Include products such as:
+
+Portable Mini Projector
+Cloud Skin Barrier Cream
+Everyday Sling Bag
+Sunset LED Strip Kit
+FlexFit Resistance Set
+
+Use UUIDs for their IDs.
+
+The frontend should fetch products from Supabase.
+
+11. Row Level Security
+
+Enable Row Level Security where appropriate.
+
+Users should:
+
+Be able to read products.
+Be able to read public reviews and profiles.
+Be able to create/update/delete only their own reviews.
+Be able to create/delete only their own Wants.
+Be able to create/delete only their own Likes.
+Be able to create/delete only their own Comments where appropriate.
+Be able to create/delete their own Follow relationships.
+
+Do not expose the Supabase secret/service-role key in the mobile app.
+
+Use only the public/publishable client key in the frontend.
+
+12. Error handling
+
+Add proper handling for:
+
+User not logged in
+Upload failure
+Supabase request failure
+Duplicate Want
+Failed review submission
+Missing media
+Products with no reviews
+
+Show clean user-facing messages instead of crashing.
+
+13. Test the complete flow
+
+After implementing this, test:
+
+TEST 1:
+Create/login to an account.
+
+TEST 2:
+Swipe right on Portable Mini Projector.
+
+Expected:
+Portable Mini Projector appears in Wants.
+
+TEST 3:
+Close and reopen the app.
+
+Expected:
+Portable Mini Projector is still in Wants.
+
+TEST 4:
+Post a 5-star review for Portable Mini Projector.
+
+Select:
+Worth It = Yes
+
+Add text:
+"For the price, this is actually really good."
+
+Expected:
+The review is saved in Supabase using the correct product_id and user_id.
+
+TEST 5:
+Open Portable Mini Projector.
+
+Expected:
+The new review appears on the product page.
+
+TEST 6:
+Open the user's Profile.
+
+Expected:
+The same review appears under Reviews.
+
+TEST 7:
+Check the Portable Mini Projector's rating and Worth the Hype percentage.
+
+Expected:
+They are calculated from actual reviews instead of hardcoded values.
+
+IMPORTANT
+
+Do not build affiliate functionality yet.
+
+Do not build an advanced recommendation algorithm yet.
+
+Do not add unnecessary new screens.
+
+Focus on making:
+
+Products → Reviews → Users → Wants
+
+properly connected through Supabase.
+
+When finished, tell me:
+
+Which Supabase tables were created or modified.
+Which storage buckets were created.
+Which files in the app were changed.
+Which features now use real Supabase data.
+Which features are still mocked.
+Any SQL I need to manually run in Supabase.
+Any Row Level Security policies I need to manually create.
+Any errors you were unable to fix.
