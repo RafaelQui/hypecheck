@@ -1,0 +1,91 @@
+# Sync Profile Avatar Across HypeCheck
+
+Fix the profile avatar behavior across the existing HypeCheck app.
+
+Do not redesign any screens.
+
+## 1. Discover profile button
+
+On the Discover screen, the circular profile/avatar button in the top-right should navigate directly to the existing Profile tab when tapped.
+
+Do not open a separate profile modal or duplicate profile screen.
+
+## 2. Use one profile source everywhere
+
+The avatar displayed on:
+
+* Discover
+* Profile
+* Any other screen showing the current user's avatar
+
+must come from the same authenticated user's `public.profiles.avatar_url`.
+
+Do not use a hardcoded initial, placeholder image, or separate local avatar state on Discover when a real `avatar_url` exists.
+
+## 3. Avatar fallback
+
+If `profiles.avatar_url` is null or empty:
+
+* Show the user's initial as the fallback.
+
+Example:
+Rafael → R
+
+Once a real avatar is uploaded, immediately replace the initial with the uploaded image everywhere.
+
+## 4. Immediate synchronization
+
+After a user changes their profile picture:
+
+1. Upload the image to the existing `avatars` Supabase Storage bucket.
+2. Update `public.profiles.avatar_url`.
+3. Update the app's shared/current-user profile state immediately.
+4. The new avatar should instantly appear on:
+
+   * Profile
+   * Discover top-right
+   * Any other current-user avatar
+5. Do not require the app to restart.
+
+## 5. Persistence
+
+After closing and reopening HypeCheck:
+
+* Fetch the authenticated user's profile from Supabase.
+* Display the saved `avatar_url`.
+* Do not revert to the stock avatar.
+
+## 6. Avoid duplicate profile state
+
+Inspect the current code for duplicate profile/user objects.
+
+Create or use one shared authenticated profile source/context/store so all screens read the same:
+
+* id
+* username
+* display_name
+* bio
+* avatar_url
+
+Do not independently hardcode profile information inside individual screens.
+
+## 7. Verify
+
+Test on Expo Go:
+
+1. Log in.
+2. Change the profile picture.
+3. Confirm the Profile screen updates.
+4. Open Discover.
+5. Confirm the top-right avatar is the same picture.
+6. Tap the Discover avatar.
+7. Confirm it opens the Profile tab.
+8. Close/reopen the app.
+9. Confirm both screens still show the saved avatar.
+
+Tell me:
+
+* what was causing Discover to use the stock avatar
+* which files you changed
+* whether both screens now use the same live `profiles.avatar_url`
+* whether navigation from the Discover avatar to Profile works

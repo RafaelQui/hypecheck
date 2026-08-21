@@ -15,6 +15,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setAuthTokenGetter, setBaseUrl } from '@workspace/api-client-react';
 import { AuthProvider, getStoredAccessToken } from '@/contexts/AuthContext';
+import { ProfileProvider } from '@/contexts/ProfileContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -52,11 +53,13 @@ export default function RootLayout() {
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
           <AuthProvider>
-            <GestureHandlerRootView>
-              <KeyboardProvider>
-                <RootLayoutNav />
-              </KeyboardProvider>
-            </GestureHandlerRootView>
+            <ProfileProvider>
+              <GestureHandlerRootView>
+                <KeyboardProvider>
+                  <RootLayoutNav />
+                </KeyboardProvider>
+              </GestureHandlerRootView>
+            </ProfileProvider>
           </AuthProvider>
         </QueryClientProvider>
       </ErrorBoundary>
