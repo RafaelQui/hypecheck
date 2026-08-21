@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "HypeCheck"
+description = "A social product discovery and review app for finding products worth buying through swipe-based discovery, honest reviews, saved Wants, and lightweight social features."
+version = "1.0.0"
+id = "artifacts/hypecheck"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 24004
+
+[services.development]
+run = "pnpm --filter @workspace/hypecheck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/hypecheck", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/hypecheck", "run", "serve" ]
+
+[services.env]
+PORT = "24004"
+BASE_PATH = "/"

@@ -1,0 +1,1 @@
+- [HypeCheck data boundary](hypecheck-data-boundary.md) — keep the first mobile prototype local-first, then move auth and social persistence behind Supabase tables without changing the discovery UI.
