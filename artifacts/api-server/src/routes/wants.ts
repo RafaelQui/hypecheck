@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { extractBearerToken, pgProxy, pgProxyAuth, requireAuth } from "../lib/supabase";
-import type { Request, Response } from "express";
+import { extractBearerToken, requireAuth, supabaseRootFetch } from "../lib/supabase";
+import type { Request, Response as ExpressResponse } from "express";
 
 const router: IRouter = Router();
 const table = "/rest/v1/wants";
@@ -13,7 +13,11 @@ type PostgrestError = {
   hint: string | null;
 };
 
-async function readPostgrestError(response: Awaited<ReturnType<typeof pgProxy>>): Promise<PostgrestError> {
+function userAuthHeaders(token: string) {
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function readPostgrestError(response: globalThis.Response): Promise<PostgrestError> {
   try {
     const body = (await response.json()) as Record<string, unknown>;
     return {
@@ -29,9 +33,9 @@ async function readPostgrestError(response: Awaited<ReturnType<typeof pgProxy>>)
 
 async function sendPostgrestError(
   req: Request,
-  res: Response,
+  res: ExpressResponse,
   operation: "load" | "save" | "remove" | "verify product" | "verify profile",
-  response: Awaited<ReturnType<typeof pgProxy>>,
+  response: globalThis.Response,
   context: { userId: string; productId?: string; tokenIncluded: boolean },
 ) {
   const error = await readPostgrestError(response);
@@ -66,9 +70,9 @@ router.get("/wants", async (req, res) => {
   if (!user) return;
 
   const token = extractBearerToken(req)!;
-  const response = await pgProxyAuth(
+  const response = await supabaseRootFetch(
     `${table}?select=product_id,created_at&user_id=eq.${encodeURIComponent(user.id)}&order=created_at.desc`,
-    token,
+    { headers: userAuthHeaders(token) },
   );
 
   if (!response.ok) {
@@ -101,8 +105,12 @@ router.post("/wants", async (req, res) => {
   const context = { userId: user.id, productId, tokenIncluded: Boolean(token) };
 
   const [profileResponse, productResponse] = await Promise.all([
-    pgProxyAuth(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id&limit=1`, token),
-    pgProxy(`/rest/v1/products?id=eq.${encodeURIComponent(productId)}&select=id&limit=1`),
+    supabaseRootFetch(`/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}&select=id&limit=1`, {
+      headers: userAuthHeaders(token),
+    }),
+    supabaseRootFetch(`/rest/v1/products?id=eq.${encodeURIComponent(productId)}&select=id&limit=1`, {
+      headers: userAuthHeaders(token),
+    }),
   ]);
 
   if (!profileResponse.ok) {
@@ -127,9 +135,9 @@ router.post("/wants", async (req, res) => {
     });
   }
 
-  const existingResponse = await pgProxyAuth(
+  const existingResponse = await supabaseRootFetch(
     `${table}?select=product_id,created_at&user_id=eq.${encodeURIComponent(user.id)}&product_id=eq.${encodeURIComponent(productId)}&limit=1`,
-    token,
+    { headers: userAuthHeaders(token) },
   );
   if (!existingResponse.ok) {
     return sendPostgrestError(req, res, "load", existingResponse, context);
@@ -144,9 +152,11 @@ router.post("/wants", async (req, res) => {
     });
   }
 
-  const response = await pgProxyAuth(table, token, {
+  const response = await supabaseRootFetch(table, {
     method: "POST",
     headers: {
+      ...userAuthHeaders(token),
+      "Content-Type": "application/json",
       Prefer: "resolution=ignore-duplicates,return=representation",
     },
     body: JSON.stringify({ user_id: user.id, product_id: productId }),
@@ -179,10 +189,9 @@ router.delete("/wants", async (req, res) => {
   if (!productId) return res.status(400).json({ message: "productId is required." });
 
   const token = extractBearerToken(req)!;
-  const response = await pgProxyAuth(
+  const response = await supabaseRootFetch(
     `${table}?user_id=eq.${encodeURIComponent(user.id)}&product_id=eq.${encodeURIComponent(productId)}`,
-    token,
-    { method: "DELETE" },
+    { method: "DELETE", headers: userAuthHeaders(token) },
   );
 
   if (!response.ok) {
