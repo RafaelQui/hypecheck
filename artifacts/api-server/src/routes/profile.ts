@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { extractBearerToken, pgProxyAuth, requireAuth } from "../lib/supabase";
+import { extractBearerToken, pgProxyAuth, requireAuth, supabaseRootFetch } from "../lib/supabase";
 import { mapReviews } from "./products";
 
 const router: IRouter = Router();
@@ -52,22 +52,55 @@ router.patch("/profile", async (req, res) => {
   if (!avatarUrl) return res.status(400).json({ message: "avatarUrl is required." });
 
   const token = extractBearerToken(req)!;
-  const response = await pgProxyAuth(
+  const response = await supabaseRootFetch(
     `/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}`,
-    token,
     {
       method: "PATCH",
-      headers: { Prefer: "return=representation" },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Prefer: "return=representation",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ avatar_url: avatarUrl }),
     },
   );
 
   if (!response.ok) {
-    req.log.error({ status: response.status }, "Supabase profile avatar update failed");
-    return res.status(502).json({ message: "Unable to update your profile picture in Supabase." });
+    let error: Record<string, unknown> = {};
+    try {
+      error = (await response.json()) as Record<string, unknown>;
+    } catch {
+      // Preserve the HTTP status even if Supabase returned a non-JSON body.
+    }
+    const diagnostic = {
+      httpStatus: response.status,
+      code: typeof error.code === "string" ? error.code : null,
+      message: typeof error.message === "string" ? error.message : null,
+      details: typeof error.details === "string" ? error.details : null,
+      hint: typeof error.hint === "string" ? error.hint : null,
+      userId: user.id,
+      tokenIncluded: Boolean(token),
+    };
+    req.log.error({ operation: "update avatar profile", supabase: diagnostic }, "Supabase profile avatar update failed");
+    return res.status(response.status >= 400 && response.status < 500 ? response.status : 502).json({
+      message: [
+        `Supabase avatar profile update failed (HTTP ${response.status})`,
+        `code=${diagnostic.code ?? "none"}`,
+        `message=${diagnostic.message ?? "none"}`,
+        `details=${diagnostic.details ?? "none"}`,
+        `hint=${diagnostic.hint ?? "none"}`,
+      ].join("; "),
+      supabase: diagnostic,
+    });
   }
 
   const rows = (await response.json()) as Array<Record<string, unknown>>;
+  if (!rows.length) {
+    return res.status(409).json({
+      message: "Supabase accepted the avatar update but returned no matching profile row.",
+      diagnostic: { userId: user.id, tokenIncluded: Boolean(token) },
+    });
+  }
   const updated = rows[0];
   return res.json({
     id: user.id,

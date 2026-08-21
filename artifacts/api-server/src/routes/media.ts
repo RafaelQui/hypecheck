@@ -62,20 +62,35 @@ router.post("/media/upload-url", async (req, res) => {
   }
 
   if (!response.ok) {
-    req.log.error({ status: response.status, bucket }, "Supabase storage signed-url failed");
-
-    let detail = "";
+    let error: Record<string, unknown> = {};
     try {
-      const errBody = (await response.json()) as Record<string, unknown>;
-      detail = typeof errBody.message === "string" ? errBody.message : "";
+      error = (await response.json()) as Record<string, unknown>;
     } catch {
-      // ignore parse failures
+      // Preserve the HTTP status even if Supabase returned a non-JSON body.
     }
 
-    return res.status(502).json({
-      message: detail
-        ? `Supabase Storage returned ${response.status}: ${detail}`
-        : `Supabase Storage returned ${response.status}. The bucket "${bucket}" may not exist or RLS may deny access.`,
+    const diagnostic = {
+      httpStatus: response.status,
+      code: typeof error.code === "string" ? error.code : null,
+      message: typeof error.message === "string" ? error.message : null,
+      details: typeof error.details === "string" ? error.details : null,
+      hint: typeof error.hint === "string" ? error.hint : null,
+      userId: user.id,
+      bucket,
+      storagePath,
+      tokenIncluded: Boolean(token),
+    };
+    req.log.error({ operation: "create avatar/media signed URL", supabase: diagnostic }, "Supabase storage signed-url failed");
+
+    return res.status(response.status >= 400 && response.status < 500 ? response.status : 502).json({
+      message: [
+        `Supabase Storage signed upload failed (HTTP ${response.status})`,
+        `code=${diagnostic.code ?? "none"}`,
+        `message=${diagnostic.message ?? "none"}`,
+        `details=${diagnostic.details ?? "none"}`,
+        `hint=${diagnostic.hint ?? "none"}`,
+      ].join("; "),
+      supabase: diagnostic,
     });
   }
 
