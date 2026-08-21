@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: wants
+    description: Saved products
 paths:
   /healthz:
     get:
@@ -24,6 +26,77 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /wants:
+    get:
+      operationId: getWants
+      tags: [wants]
+      summary: Get the current user's saved products
+      parameters:
+        - in: header
+          name: x-hypecheck-user-id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Saved wants
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/WantItem"
+        "502":
+          description: Supabase unavailable
+    post:
+      operationId: saveWant
+      tags: [wants]
+      summary: Save a product to Wants
+      parameters:
+        - in: header
+          name: x-hypecheck-user-id
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WantInput"
+      responses:
+        "201":
+          description: Saved want
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WantItem"
+        "502":
+          description: Supabase unavailable
+    delete:
+      operationId: removeWant
+      tags: [wants]
+      summary: Remove a product from Wants
+      parameters:
+        - in: header
+          name: x-hypecheck-user-id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Want removed
+        "502":
+          description: Supabase unavailable
 components:
   schemas:
     HealthStatus:
@@ -33,4 +106,18 @@ components:
           type: string
       required:
         - status
+    WantItem:
+      type: object
+      required: [productId, createdAt]
+      properties:
+        productId:
+          type: string
+        createdAt:
+          type: string
+    WantInput:
+      type: object
+      required: [productId]
+      properties:
+        productId:
+          type: string
 

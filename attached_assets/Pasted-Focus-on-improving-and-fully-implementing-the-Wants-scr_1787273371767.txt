@@ -1,0 +1,157 @@
+Focus on improving and fully implementing the Wants screen.
+
+Do not redesign the rest of the app and do not add unrelated features.
+
+The Wants screen should be the user's personal shopping wishlist containing every product they swipe RIGHT on from the Discover screen.
+
+CORE FUNCTIONALITY
+
+When a user swipes RIGHT on a product in Discover:
+- Save that product to their Wants list in Supabase.
+- The product should immediately appear on the Wants screen.
+- Wants must persist after closing and reopening the app.
+- Prevent duplicate products from being added.
+- If the user removes a product from Wants, update Supabase.
+- Make sure Wants are associated with the currently logged-in user.
+
+WANTS SCREEN DESIGN
+
+At the top display:
+
+"Your Wants ❤️"
+
+Underneath show:
+"[number] products you want"
+
+Add horizontal category filters:
+
+All
+Tech
+Beauty
+Fashion
+Home
+Fitness
+Car
+Gaming
+Pets
+Kitchen
+
+Only show categories that currently contain saved products when possible.
+
+PRODUCT CARDS
+
+Create a polished two-column product grid.
+
+Each card should show:
+
+- Large product image
+- Product name
+- Current price
+- Star rating
+- HypeScore / Recommend percentage
+- Small category label
+- Heart icon showing it is saved
+
+Example:
+
+[Product Image]
+
+Portable Mini Projector
+
+$34.99
+
+⭐ 4.4
+🔥 89% HypeScore
+
+❤️
+
+Tapping a product card should open that product's existing Product Details screen.
+
+REMOVING PRODUCTS
+
+Allow users to tap the heart icon to remove a product from Wants.
+
+Before removing it, show a small confirmation or undo option so products are not accidentally deleted.
+
+When removed:
+- Update the UI immediately.
+- Remove the record from Supabase.
+- Make sure the Discover screen also recognizes that the product is no longer in Wants.
+
+SORTING
+
+Add a small Sort button.
+
+Options:
+
+Recently Added
+Price: Low to High
+Price: High to Low
+Highest Rated
+Highest HypeScore
+
+EMPTY STATE
+
+If the user hasn't saved anything yet, show a clean empty state:
+
+"Nothing here yet ❤️"
+
+"Swipe right on products you want and they'll appear here."
+
+Include a button:
+
+"Discover Products"
+
+The button should take the user back to Discover.
+
+PRICE DISPLAY
+
+Structure the UI so we can eventually support price-drop tracking.
+
+For products that have a mock previous price, display:
+
+Was $49.99
+Now $34.99
+↓ 30%
+
+Use sample price-drop data on a few products so we can see what this feature would look like.
+
+Do NOT build real price tracking yet.
+
+FUTURE BUY BUTTON
+
+Add a "View Product" button on the Product Details screen if one does not already exist.
+
+For now, this should use the product's existing storeUrl.
+
+Structure this cleanly so we can replace storeUrl with affiliate links later.
+
+Do NOT implement affiliate tracking yet.
+
+PERFORMANCE
+
+- Load Wants efficiently from Supabase.
+- Show a loading state while fetching.
+- Handle network errors gracefully.
+- Do not reload the entire screen unnecessarily when one product is removed.
+- Keep scrolling smooth.
+
+IMPORTANT
+
+Do not use hardcoded Wants for logged-in users.
+
+The Wants screen must use the actual products saved by that user in Supabase.
+
+Do not break the existing Discover swipe functionality.
+
+After completing this task:
+
+1. Test that swiping right adds a product to Wants.
+2. Test that restarting the app keeps the product in Wants.
+3. Test removing a product.
+4. Test category filters.
+5. Test all sorting options.
+6. Test opening a product from Wants.
+7. Confirm the Supabase table being used.
+8. Tell me which files you changed.
+9. Tell me about any errors or unfinished functionality instead of hiding them.

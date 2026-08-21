@@ -1,1 +1,2 @@
 - [HypeCheck data boundary](hypecheck-data-boundary.md) — keep the first mobile prototype local-first, then move auth and social persistence behind Supabase tables without changing the discovery UI.
+- [Wants persistence boundary](wants-supabase.md) — provision want_list and real user identity before claiming cloud-backed wishlist persistence.
