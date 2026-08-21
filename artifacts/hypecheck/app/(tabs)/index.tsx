@@ -57,6 +57,7 @@ const reviews: Review[] = [
 
 function Rating({ value, size=13 }: { value:number; size?:number }) { return <View style={s.rating}>{[0,1,2,3,4].map(i => <Ionicons key={i} name={i < Math.round(value) ? 'star' : 'star-outline'} size={size} color={colors.accentForeground} />)}<Text style={s.ratingText}>{value.toFixed(1)}</Text></View>; }
 function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
+  const videoViewRef=useRef<VideoView>(null);
   const player=useVideoPlayer({uri:videoUrl,contentType:'progressive'},videoPlayer=>{videoPlayer.loop=false;videoPlayer.allowsExternalPlayback=false;});
   const [status,setStatus]=useState(player.status);
   const [isPlaying,setIsPlaying]=useState(player.playing);
@@ -71,11 +72,12 @@ function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
     if(player.playing)player.pause();
     else player.play();
   };
+  const enterFullscreen=()=>{videoViewRef.current?.enterFullscreen().catch(()=>Alert.alert('Could not open fullscreen','This video will continue playing here.'));};
   return <View style={profileStyles.videoReviewCard}>
-    <VideoView player={player} style={profileStyles.videoReviewPlayer} nativeControls={false} contentFit="contain"/>
+    <VideoView ref={videoViewRef} player={player} style={profileStyles.videoReviewPlayer} nativeControls={false} contentFit="contain" fullscreenOptions={{enable:true}}/>
     {status==='loading'||status==='idle'?<View style={profileStyles.videoStatus}><ActivityIndicator color="#fff"/><Text style={profileStyles.videoStatusText}>Loading video…</Text></View>:null}
     {status==='error'?<View style={profileStyles.videoStatus}><Ionicons name="alert-circle-outline" size={28} color="#fff"/><Text style={profileStyles.videoStatusText}>This video could not be played.</Text>{playbackError?<Text style={profileStyles.videoErrorDetail}>Please try again later.</Text>:null}</View>:null}
-    {status==='readyToPlay'?<Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable>:null}
+    {status==='readyToPlay'?<><Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open video fullscreen" onPress={enterFullscreen} style={profileStyles.videoFullscreenButton}><Ionicons name="expand" size={20} color="#fff"/></Pressable></>:null}
   </View>;
 }
 function Header({ title, subtitle, compact, onAvatarPress }: { title:string; subtitle?:string; compact?:boolean; onAvatarPress?:()=>void }) { const insets=useSafeAreaInsets(); const {session}=useAuth(); const {profile}=useProfile(); const username=profile?.username||session?.user.email?.split('@')[0]||'Guest'; const avatarUrl=profile?.avatarUrl?.trim()||null; return <View style={[s.header,{paddingTop:insets.top+(compact?4:10)}]}><View><Text style={s.brand}>HypeCheck</Text><Text style={s.headerTitle}>{title}</Text>{subtitle && <Text style={s.muted}>{subtitle}</Text>}</View><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={onAvatarPress} style={[s.avatar,{overflow:'hidden'}]}>{avatarUrl?<Image source={{uri:avatarUrl}} style={{width:'100%',height:'100%',resizeMode:'cover'}}/>:<Text style={s.avatarText}>{username[0].toUpperCase()}</Text>}</Pressable></View>; }
@@ -401,6 +403,7 @@ const profileStyles = StyleSheet.create({
   videoReviewCard:{width:'100%',aspectRatio:16/9,borderRadius:14,overflow:'hidden',backgroundColor:colors.foreground,marginBottom:12,position:'relative'},
   videoReviewPlayer:{width:'100%',height:'100%',backgroundColor:colors.foreground},
   videoTapTarget:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,0,0,.08)'},
+  videoFullscreenButton:{position:'absolute',top:10,right:10,width:36,height:36,borderRadius:18,backgroundColor:'rgba(0,0,0,.5)',alignItems:'center',justifyContent:'center'},
   videoReviewPlay:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(255,96,104,.94)',alignItems:'center',justifyContent:'center'},
   videoReviewCopy:{fontFamily:'Inter_600SemiBold',fontSize:12,color:'#fff',marginTop:8,textShadowColor:'rgba(0,0,0,.5)',textShadowRadius:3},
   videoStatus:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(28,17,20,.76)',paddingHorizontal:20},
