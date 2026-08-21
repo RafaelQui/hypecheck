@@ -1,0 +1,127 @@
+Finish the HypeCheck Product Details experience.
+
+Do not redesign the rest of the app.
+
+The Product Details screen should become the central page for each product.
+
+Use the real product from Supabase based on products.id.
+
+Show:
+
+- Product image or primary review video
+- Product name
+- Current price
+- Retailer name
+- Average star rating
+- Review count
+- Worth the Hype percentage
+- Want / Saved button
+- Share button
+- Buy button
+
+REVIEWS SECTION
+
+Show all reviews where:
+reviews.product_id = current product.id
+
+Each review should show:
+- reviewer avatar
+- username
+- rating
+- Worth It Yes/No
+- text
+- photo if present
+- video if present
+- like count
+- comment count
+- Helpful button
+
+Video reviews must play INSIDE HypeCheck.
+Do not open Supabase or an external browser for review media.
+
+Add tabs:
+
+Reviews
+Videos
+Photos
+
+Reviews = all reviews
+Videos = only reviews with video_url
+Photos = only reviews with photo_url
+
+WANT BUTTON
+
+The Want button must use the same live public.wants data as the Discover right swipe.
+
+If already saved:
+show Saved / filled heart
+
+If not saved:
+show Want / empty heart
+
+Tapping it should insert/delete the correct Supabase Want row and update immediately.
+
+BUY BUTTON
+
+Add a clear button near the product information:
+
+"View on [Retailer]"
+
+Use products.store_url for now.
+
+If store_url is null:
+hide or disable the button cleanly.
+
+Open the retailer page when tapped.
+
+Do not implement checkout inside HypeCheck.
+
+Structure this so store_url can later be replaced by affiliate_url without redesigning the screen.
+
+DYNAMIC PRODUCT METRICS
+
+Use product_summaries for:
+- rating
+- review_count
+- worth_the_hype
+
+Do not use hardcoded ratings when live values exist.
+
+If no reviews exist:
+show "Not rated yet".
+
+REAL DATA ONLY
+
+Do not create separate copies of products for Product Details.
+
+Discover, Search, Wants and Product Details must all reference the same Supabase products.id.
+
+ERROR/LOADING STATES
+
+Add:
+- loading state
+- product not found state
+- failed review loading state
+- failed Want save state
+- failed external store link state
+
+Do not expose raw Supabase/database terminology to normal users.
+
+TEST
+
+Verify on Expo Go:
+
+1. Open a product from Discover.
+2. Correct product details appear.
+3. Save/unsave Want.
+4. Wants screen updates.
+5. Reviews belong to the correct product.
+6. Video reviews play inside the app.
+7. Photos render correctly.
+8. Rating/HypeScore reflect live reviews.
+9. Buy button opens the correct retailer.
+10. Closing/reopening app preserves Wants and reviews.
+
+Tell me which files changed and which parts still use demo data.
+
+Do not make unrelated changes.
