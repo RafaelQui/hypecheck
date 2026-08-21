@@ -1,0 +1,262 @@
+Improve the existing HypeCheck Discover screen based on the current design.
+
+IMPORTANT:
+Do NOT redesign the entire screen.
+Do NOT change the overall visual style.
+Do NOT remove the current product card, video review layout, right-side social actions, or "Worth the Hype" concept.
+
+The goal is to make the existing Discover screen cleaner, easier to understand, and make the swipe interaction feel premium.
+
+1. Improve the swipe experience
+
+The swipe interaction should be the main feature of Discover.
+
+Keep:
+
+Swipe LEFT = Pass
+Swipe RIGHT = Want It
+
+When the user starts dragging the card LEFT:
+
+Slightly rotate the card left.
+Show a large semi-transparent overlay that says:
+
+PASS
+
+Use an X icon if appropriate.
+The overlay should become more visible the farther the user drags.
+
+When the user starts dragging the card RIGHT:
+
+Slightly rotate the card right.
+Show a large semi-transparent overlay that says:
+
+WANT ❤️
+
+The overlay should become more visible the farther the user drags.
+
+When the swipe passes the completion threshold:
+
+Animate the card smoothly off-screen.
+Trigger haptic feedback using Expo Haptics if supported.
+Immediately reveal the next product card.
+Prevent accidental double-swipes.
+
+If the user does not drag far enough:
+
+Animate the card smoothly back into its original position.
+
+Make the animation feel smooth, responsive, and native.
+
+2. Make the swipe directions obvious
+
+Currently the page says "Swipe to decide."
+
+Keep that text but add subtle swipe direction indicators around it:
+
+← PASS
+
+Swipe to decide
+
+WANT ❤️ →
+
+These should be small and clean so they do not clutter the interface.
+
+Do not make them look like large buttons.
+
+3. Improve the product information hierarchy
+
+Keep the current placement of the product information over the video/image.
+
+Currently there is too much information packed onto one line.
+
+Change the product information layout to:
+
+Product Name
+
+$18.00 ⭐ 4.7 (946)
+
+🔥 94% Worth the Hype
+
+Make:
+
+Price prominent
+Rating easy to read
+Review count less visually dominant
+"Worth the Hype" stand out as a HypeCheck-specific metric
+
+Do not display five individual star icons if they make the row feel cluttered.
+
+Use one star icon with the numeric rating instead.
+
+4. Keep "Worth the Hype" as a major HypeCheck feature
+
+The "Worth the Hype" percentage is an important part of the brand.
+
+Make it visually recognizable but not overpowering.
+
+Example:
+
+🔥 94% Worth the Hype
+
+Eventually this may become the product's "HypeScore," so structure the component so the wording can easily be changed later.
+
+5. Improve the reviewer section
+
+Keep the reviewer section underneath the product media.
+
+Improve it to look more social.
+
+Show:
+
+Circular profile picture
+@username
+Follow button
+Review caption
+
+Example:
+
+[avatar] @glowwithmaya Follow
+
+"My skin looks rested even when I am not."
+
+The Follow button should use the app's existing follow functionality if available.
+
+If follow functionality is not implemented yet, visually add the button but keep it mocked and clearly document that it is mocked.
+
+Tapping the reviewer avatar or username should open that user's profile if profiles are already implemented.
+
+6. Keep the right-side social controls
+
+Do NOT remove the TikTok-style controls on the right side of the product media.
+
+Keep:
+
+Like
+Comment
+Share
+
+Keep the counts underneath the icons.
+
+Make spacing consistent.
+
+Eventually a user avatar may be added above these controls, so leave enough room in the component structure for that later.
+
+7. Simplify the top section slightly
+
+Do not completely redesign the header.
+
+Keep the HypeCheck branding.
+
+Reduce unnecessary vertical space so the product content begins slightly higher on the screen.
+
+The hierarchy should feel closer to:
+
+HypeCheck
+
+Discover
+
+For You Swipe to decide Filter
+
+Do not make the header feel crowded.
+
+8. Preserve the existing filter button
+
+Keep the existing filter/settings icon in the top-right.
+
+Do not build a complicated filter system yet.
+
+If the filter screen already exists, preserve it.
+
+If it does not exist, make the icon open a simple placeholder modal with:
+
+Categories
+Price Range
+Minimum Rating
+
+Do not spend significant development time on advanced filtering yet.
+
+9. Add a stacked-card effect
+
+Show the next product card slightly behind the current card.
+
+It should be subtle.
+
+When the current card is swiped away:
+
+The next card smoothly moves forward.
+Another card appears behind it.
+
+Do not make the stack distracting.
+
+10. Preserve Supabase behavior
+
+Do not break existing Supabase functionality.
+
+When a user swipes RIGHT:
+
+Add the product to their Wants list.
+Prevent duplicates.
+Persist the Want in Supabase.
+
+When a user swipes LEFT:
+
+Record the product as not interested if that functionality already exists.
+
+If a "not interested" table or tracking system does not currently exist, do not create a complicated recommendation system yet.
+
+Simply move to the next product.
+
+11. Preserve the current visual identity
+
+IMPORTANT:
+
+Do not replace the existing HypeCheck design with generic AI-generated cards.
+
+Keep:
+
+Current color direction
+Current typography style
+Rounded product card
+Large product video/image
+Social media feel
+Bottom navigation
+Existing HypeCheck branding
+
+This task is a refinement, not a redesign.
+
+12. Mobile responsiveness
+
+Optimize specifically for phone screens.
+
+Test:
+
+iPhone-style narrow screens
+Different screen heights
+Safe areas
+Bottom navigation spacing
+Dynamic Island/notch spacing
+
+Make sure no important text or buttons are cut off.
+
+13. After completing the task
+
+Test and report:
+
+Swipe left works.
+Swipe right works.
+WANT overlay appears while dragging right.
+PASS overlay appears while dragging left.
+Right swipe saves the product to Wants.
+Product cards do not duplicate in Wants.
+Next product loads smoothly.
+Haptic feedback works where supported.
+Tapping the reviewer opens their profile if supported.
+Existing likes/comments/share functionality still works.
+Existing bottom navigation still works.
+
+Tell me exactly which files you changed.
+
+Do not add unrelated features.
+Do not redesign other screens.
+Do not change the database schema unless absolutely necessary.
