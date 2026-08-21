@@ -5,8 +5,15 @@
  * HypeCheck API specification
  * OpenAPI spec version: 0.2.0
  */
-import type { WantItem } from './wantItem';
 
-export type GetWants200 = {
-  items: WantItem[];
+export type GetProfileReviewsParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: number;
+/**
+ * @minimum 0
+ */
+offset?: number;
 };

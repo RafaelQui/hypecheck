@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.2.0
  */
 
-export interface WantInput {
-  productId: string;
+export interface UserProfile {
+  id: string;
+  email: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  createdAt: string;
 }

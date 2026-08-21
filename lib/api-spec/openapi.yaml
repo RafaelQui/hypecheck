@@ -2,16 +2,26 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 0.2.0
+  description: HypeCheck API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication operations
   - name: wants
-    description: Saved products
+    description: Saved products (want list)
+  - name: products
+    description: Product catalog
+  - name: reviews
+    description: Product reviews
+  - name: profile
+    description: User profile
+  - name: media
+    description: Media upload helpers
 paths:
   /healthz:
     get:
@@ -26,17 +36,151 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ---------------------------------------------------------------------------
+  # Auth
+  # ---------------------------------------------------------------------------
+  /auth/signup:
+    post:
+      operationId: authSignup
+      tags: [auth]
+      summary: Sign up a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Account created; a session is present unless email confirmation is required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Log in with email + password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuthCredentials"
+      responses:
+        "200":
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "400":
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Wrong email or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /auth/refresh:
+    post:
+      operationId: authRefresh
+      tags: [auth]
+      summary: Rotate a Supabase refresh token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenInput"
+      responses:
+        "200":
+          description: Refreshed authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthSession"
+        "401":
+          description: Refresh token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+  /auth/me:
+    get:
+      operationId: authMe
+      tags: [auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  # ---------------------------------------------------------------------------
+  # Wants
+  # ---------------------------------------------------------------------------
   /wants:
     get:
       operationId: getWants
       tags: [wants]
       summary: Get the current user's saved products
-      parameters:
-        - in: header
-          name: x-hypecheck-user-id
-          required: true
-          schema:
-            type: string
+      security:
+        - bearerAuth: []
       responses:
         "200":
           description: Saved wants
@@ -50,18 +194,24 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/WantItem"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "502":
           description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
     post:
       operationId: saveWant
       tags: [wants]
       summary: Save a product to Wants
-      parameters:
-        - in: header
-          name: x-hypecheck-user-id
-          required: true
-          schema:
-            type: string
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -75,18 +225,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/WantItem"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "502":
           description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
     delete:
       operationId: removeWant
       tags: [wants]
       summary: Remove a product from Wants
+      security:
+        - bearerAuth: []
       parameters:
-        - in: header
-          name: x-hypecheck-user-id
-          required: true
-          schema:
-            type: string
         - in: query
           name: productId
           required: true
@@ -95,10 +258,344 @@ paths:
       responses:
         "204":
           description: Want removed
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "502":
           description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  # ---------------------------------------------------------------------------
+  # Products
+  # ---------------------------------------------------------------------------
+  /products:
+    get:
+      operationId: listProducts
+      tags: [products]
+      summary: List or search products
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+          description: Search query (name, category, or retailer)
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: number
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: number
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Product list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ProductSummary"
+                  total:
+                    type: number
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /products/{productId}:
+    get:
+      operationId: getProduct
+      tags: [products]
+      summary: Get product detail with aggregate fields
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductDetail"
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /products/{productId}/reviews:
+    get:
+      operationId: getProductReviews
+      tags: [products]
+      summary: Get reviews for a product
+      parameters:
+        - in: path
+          name: productId
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: number
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: number
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: Product reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Review"
+                  total:
+                    type: number
+        "404":
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  # ---------------------------------------------------------------------------
+  # Reviews
+  # ---------------------------------------------------------------------------
+  /reviews:
+    post:
+      operationId: createReview
+      tags: [reviews]
+      summary: Create a product review
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewInput"
+      responses:
+        "201":
+          description: Review created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "409":
+          description: Review already exists for this product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  # ---------------------------------------------------------------------------
+  # Profile
+  # ---------------------------------------------------------------------------
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [profile]
+      summary: Get the current user's profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  /profile/reviews:
+    get:
+      operationId: getProfileReviews
+      tags: [profile]
+      summary: Get reviews authored by the current user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: number
+            default: 20
+            minimum: 1
+            maximum: 100
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: number
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: User reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, total]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Review"
+                  total:
+                    type: number
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
+  # ---------------------------------------------------------------------------
+  # Media
+  # ---------------------------------------------------------------------------
+  /media/upload-url:
+    post:
+      operationId: getUploadUrl
+      tags: [media]
+      summary: Get a signed upload URL for review images, videos, or avatars
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Signed upload URL
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
   schemas:
+    # -------------------------------------------------------------------------
+    # Shared
+    # -------------------------------------------------------------------------
     HealthStatus:
       type: object
       properties:
@@ -106,6 +603,75 @@ components:
           type: string
       required:
         - status
+
+    ErrorBody:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        code:
+          type: string
+
+    # -------------------------------------------------------------------------
+    # Auth
+    # -------------------------------------------------------------------------
+    AuthCredentials:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          description: User email address
+        password:
+          type: string
+          minLength: 6
+
+    AuthSession:
+      type: object
+      required: [accessToken, refreshToken, expiresIn, user]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: number
+        user:
+          $ref: "#/components/schemas/AuthUser"
+
+    SignupResult:
+      type: object
+      required: [confirmationRequired, user]
+      properties:
+        confirmationRequired:
+          type: boolean
+        message:
+          type: string
+        user:
+          $ref: "#/components/schemas/AuthUser"
+        session:
+          $ref: "#/components/schemas/AuthSession"
+
+    RefreshTokenInput:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    AuthUser:
+      type: object
+      required: [id, email]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+
+    # -------------------------------------------------------------------------
+    # Wants
+    # -------------------------------------------------------------------------
     WantItem:
       type: object
       required: [productId, createdAt]
@@ -114,6 +680,7 @@ components:
           type: string
         createdAt:
           type: string
+
     WantInput:
       type: object
       required: [productId]
@@ -121,3 +688,176 @@ components:
         productId:
           type: string
 
+    # -------------------------------------------------------------------------
+    # Products
+    # -------------------------------------------------------------------------
+    ProductSummary:
+      type: object
+      required: [id, name, category, price, reviewCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          description: Retail price
+        retailer:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+          description: Average rating (1–5), null when no reviews yet
+        reviewCount:
+          type: number
+        worthTheHype:
+          type: number
+          nullable: true
+          description: Percentage (0–100) of reviewers who said it is worth the hype
+
+    ProductDetail:
+      type: object
+      required: [id, name, category, price, reviewCount]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        price:
+          type: number
+          description: Retail price
+        category:
+          type: string
+        retailer:
+          type: string
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        storeUrl:
+          type: string
+          nullable: true
+        rating:
+          type: number
+          nullable: true
+          description: Average rating (1–5), null when no reviews yet
+        reviewCount:
+          type: number
+        worthTheHype:
+          type: number
+          nullable: true
+          description: Percentage (0–100) of reviewers who said it is worth the hype
+
+    # -------------------------------------------------------------------------
+    # Reviews
+    # -------------------------------------------------------------------------
+    ReviewInput:
+      type: object
+      required: [productId, rating, worthIt, reviewText]
+      properties:
+        productId:
+          type: string
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+        worthIt:
+          type: boolean
+        reviewText:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        photoUrl:
+          type: string
+          nullable: true
+
+    Review:
+      type: object
+      required: [id, productId, userId, rating, worthIt, reviewText, createdAt]
+      properties:
+        id:
+          type: string
+        productId:
+          type: string
+        userId:
+          type: string
+        rating:
+          type: number
+          minimum: 1
+          maximum: 5
+        worthIt:
+          type: boolean
+        reviewText:
+          type: string
+        videoUrl:
+          type: string
+          nullable: true
+        photoUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        authorUsername:
+          type: string
+          nullable: true
+        authorAvatarUrl:
+          type: string
+          nullable: true
+
+    # -------------------------------------------------------------------------
+    # Profile
+    # -------------------------------------------------------------------------
+    UserProfile:
+      type: object
+      required: [id, email, createdAt]
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+          nullable: true
+        avatarUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+
+    # -------------------------------------------------------------------------
+    # Media
+    # -------------------------------------------------------------------------
+    UploadUrlRequest:
+      type: object
+      required: [bucket, filename]
+      properties:
+        bucket:
+          type: string
+          enum: [review-images, review-videos, avatars]
+        filename:
+          type: string
+        contentType:
+          type: string
+
+    UploadUrlResponse:
+      type: object
+      required: [uploadUrl, storagePath, mediaUrl]
+      properties:
+        uploadUrl:
+          type: string
+        storagePath:
+          type: string
+        mediaUrl:
+          type: string
+        expiresIn:
+          type: number

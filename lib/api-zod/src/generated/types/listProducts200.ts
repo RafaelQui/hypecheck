@@ -5,8 +5,9 @@
  * HypeCheck API specification
  * OpenAPI spec version: 0.2.0
  */
-import type { WantItem } from './wantItem';
+import type { ProductSummary } from './productSummary';
 
-export type GetWants200 = {
-  items: WantItem[];
+export type ListProducts200 = {
+  items: ProductSummary[];
+  total: number;
 };

@@ -5,8 +5,10 @@
  * HypeCheck API specification
  * OpenAPI spec version: 0.2.0
  */
-import type { WantItem } from './wantItem';
 
-export type GetWants200 = {
-  items: WantItem[];
-};
+export interface AuthCredentials {
+  /** User email address */
+  email: string;
+  /** @minLength 6 */
+  password: string;
+}
