@@ -57,10 +57,11 @@ const reviews: Review[] = [
 
 function Rating({ value, size=13 }: { value:number; size?:number }) { return <View style={s.rating}>{[0,1,2,3,4].map(i => <Ionicons key={i} name={i < Math.round(value) ? 'star' : 'star-outline'} size={size} color={colors.accentForeground} />)}<Text style={s.ratingText}>{value.toFixed(1)}</Text></View>; }
 function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
-  const videoViewRef=useRef<VideoView>(null);
+  const insets=useSafeAreaInsets();
   const player=useVideoPlayer({uri:videoUrl,contentType:'progressive'},videoPlayer=>{videoPlayer.loop=false;videoPlayer.allowsExternalPlayback=false;});
   const [status,setStatus]=useState(player.status);
   const [isPlaying,setIsPlaying]=useState(player.playing);
+  const [isFullscreen,setIsFullscreen]=useState(false);
   const [playbackError,setPlaybackError]=useState<string|null>(null);
   useEffect(()=>{
     const statusSubscription=player.addListener('statusChange',event=>{setStatus(event.status);setPlaybackError(event.error?.message??null);});
@@ -72,12 +73,18 @@ function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
     if(player.playing)player.pause();
     else player.play();
   };
-  const enterFullscreen=()=>{videoViewRef.current?.enterFullscreen().catch(()=>Alert.alert('Could not open fullscreen','This video will continue playing here.'));};
   return <View style={profileStyles.videoReviewCard}>
-    <VideoView ref={videoViewRef} player={player} style={profileStyles.videoReviewPlayer} nativeControls={false} contentFit="contain" fullscreenOptions={{enable:true}}/>
+    {!isFullscreen?<VideoView player={player} style={profileStyles.videoReviewPlayer} nativeControls={false} contentFit="contain"/>:null}
     {status==='loading'||status==='idle'?<View style={profileStyles.videoStatus}><ActivityIndicator color="#fff"/><Text style={profileStyles.videoStatusText}>Loading video…</Text></View>:null}
     {status==='error'?<View style={profileStyles.videoStatus}><Ionicons name="alert-circle-outline" size={28} color="#fff"/><Text style={profileStyles.videoStatusText}>This video could not be played.</Text>{playbackError?<Text style={profileStyles.videoErrorDetail}>Please try again later.</Text>:null}</View>:null}
-    {status==='readyToPlay'?<><Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open video fullscreen" onPress={enterFullscreen} style={profileStyles.videoFullscreenButton}><Ionicons name="expand" size={20} color="#fff"/></Pressable></>:null}
+    {status==='readyToPlay'?<><Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open video fullscreen" onPress={()=>setIsFullscreen(true)} style={profileStyles.videoFullscreenButton}><Ionicons name="expand" size={20} color="#fff"/></Pressable></>:null}
+    <Modal visible={isFullscreen} animationType="fade" onRequestClose={()=>setIsFullscreen(false)} statusBarTranslucent>
+      <View style={profileStyles.fullscreenVideoModal}>
+        <VideoView player={player} style={profileStyles.fullscreenVideoPlayer} nativeControls={false} contentFit="contain"/>
+        {status==='readyToPlay'?<Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.fullscreenVideoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable>:null}
+        <Pressable accessibilityRole="button" accessibilityLabel="Close fullscreen video" onPress={()=>setIsFullscreen(false)} style={[profileStyles.fullscreenCloseButton,{top:insets.top+12}]}><Ionicons name="close" size={24} color="#fff"/></Pressable>
+      </View>
+    </Modal>
   </View>;
 }
 function Header({ title, subtitle, compact, onAvatarPress }: { title:string; subtitle?:string; compact?:boolean; onAvatarPress?:()=>void }) { const insets=useSafeAreaInsets(); const {session}=useAuth(); const {profile}=useProfile(); const username=profile?.username||session?.user.email?.split('@')[0]||'Guest'; const avatarUrl=profile?.avatarUrl?.trim()||null; return <View style={[s.header,{paddingTop:insets.top+(compact?4:10)}]}><View><Text style={s.brand}>HypeCheck</Text><Text style={s.headerTitle}>{title}</Text>{subtitle && <Text style={s.muted}>{subtitle}</Text>}</View><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={onAvatarPress} style={[s.avatar,{overflow:'hidden'}]}>{avatarUrl?<Image source={{uri:avatarUrl}} style={{width:'100%',height:'100%',resizeMode:'cover'}}/>:<Text style={s.avatarText}>{username[0].toUpperCase()}</Text>}</Pressable></View>; }
@@ -409,6 +416,10 @@ const profileStyles = StyleSheet.create({
   videoStatus:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(28,17,20,.76)',paddingHorizontal:20},
   videoStatusText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:'#fff',textAlign:'center'},
   videoErrorDetail:{fontFamily:'Inter_400Regular',fontSize:12,color:'rgba(255,255,255,.74)',textAlign:'center'},
+  fullscreenVideoModal:{flex:1,backgroundColor:'#000',justifyContent:'center'},
+  fullscreenVideoPlayer:{width:'100%',aspectRatio:16/9,backgroundColor:'#000'},
+  fullscreenVideoTapTarget:{position:'absolute',top:0,bottom:0,left:0,right:0,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,0,0,.08)'},
+  fullscreenCloseButton:{position:'absolute',left:18,width:42,height:42,borderRadius:21,backgroundColor:'rgba(0,0,0,.58)',alignItems:'center',justifyContent:'center'},
   tabContent:{paddingTop:3},
   reviewPhoto:{width:'100%',height:160,borderRadius:14,marginBottom:12},
   emptyState:{alignItems:'center',justifyContent:'center',paddingTop:50,paddingHorizontal:22,gap:9},
