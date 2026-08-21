@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { connectors, requireAuth } from "../lib/supabase";
+import { extractBearerToken, requireAuth, supabaseRootFetch } from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -27,9 +27,9 @@ router.post("/auth/signup", async (req, res) => {
     return res.status(400).json({ message: "password must be at least 6 characters." });
   }
 
-  let response: Awaited<ReturnType<typeof connectors.proxy>>;
+  let response: Response;
   try {
-    response = await connectors.proxy("supabase", "/auth/v1/signup", {
+    response = await supabaseRootFetch("/auth/v1/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -86,17 +86,13 @@ router.post("/auth/login", async (req, res) => {
     return res.status(400).json({ message: "email and password are required." });
   }
 
-  let response: Awaited<ReturnType<typeof connectors.proxy>>;
+  let response: Response;
   try {
-    response = await connectors.proxy(
-      "supabase",
-      "/auth/v1/token?grant_type=password",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      },
-    );
+    response = await supabaseRootFetch("/auth/v1/token?grant_type=password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
   } catch {
     return res.status(502).json({ message: "Unable to reach Supabase Auth. Check connector configuration." });
   }
@@ -127,9 +123,9 @@ router.post("/auth/refresh", async (req, res) => {
   const refreshToken = typeof req.body?.refreshToken === "string" ? req.body.refreshToken : "";
   if (!refreshToken) return res.status(400).json({ message: "refreshToken is required." });
 
-  let response: Awaited<ReturnType<typeof connectors.proxy>>;
+  let response: Response;
   try {
-    response = await connectors.proxy("supabase", "/auth/v1/token?grant_type=refresh_token", {
+    response = await supabaseRootFetch("/auth/v1/token?grant_type=refresh_token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -160,6 +156,27 @@ router.get("/auth/me", async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;
   return res.status(200).json({ id: user.id, email: user.email });
+});
+
+router.post("/auth/logout", async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const token = extractBearerToken(req)!;
+  try {
+    const response = await supabaseRootFetch("/auth/v1/logout", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      return res.status(response.status >= 400 && response.status < 500 ? 401 : 502).json({
+        message: "Supabase could not end this session.",
+      });
+    }
+    return res.status(204).send();
+  } catch {
+    return res.status(502).json({ message: "Unable to reach Supabase Auth. Check server configuration." });
+  }
 });
 
 export default router;

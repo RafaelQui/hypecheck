@@ -125,6 +125,10 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface ProfileUpdateInput {
+  avatarUrl: string;
+}
+
 export type UploadUrlRequestBucket = typeof UploadUrlRequestBucket[keyof typeof UploadUrlRequestBucket];
 
 

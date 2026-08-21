@@ -44,6 +44,40 @@ router.get("/profile", async (req, res) => {
   });
 });
 
+router.patch("/profile", async (req, res) => {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const avatarUrl = typeof req.body?.avatarUrl === "string" ? req.body.avatarUrl.trim() : "";
+  if (!avatarUrl) return res.status(400).json({ message: "avatarUrl is required." });
+
+  const token = extractBearerToken(req)!;
+  const response = await pgProxyAuth(
+    `/rest/v1/profiles?id=eq.${encodeURIComponent(user.id)}`,
+    token,
+    {
+      method: "PATCH",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({ avatar_url: avatarUrl }),
+    },
+  );
+
+  if (!response.ok) {
+    req.log.error({ status: response.status }, "Supabase profile avatar update failed");
+    return res.status(502).json({ message: "Unable to update your profile picture in Supabase." });
+  }
+
+  const rows = (await response.json()) as Array<Record<string, unknown>>;
+  const updated = rows[0];
+  return res.json({
+    id: user.id,
+    email: user.email,
+    username: typeof updated?.username === "string" ? updated.username : null,
+    avatarUrl: typeof updated?.avatar_url === "string" ? updated.avatar_url : avatarUrl,
+    createdAt: typeof updated?.created_at === "string" ? updated.created_at : new Date().toISOString(),
+  });
+});
+
 router.get("/profile/reviews", async (req, res) => {
   const user = await requireAuth(req, res);
   if (!user) return;

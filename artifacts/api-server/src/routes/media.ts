@@ -1,5 +1,10 @@
 import { Router, type IRouter } from "express";
-import { connectors, extractBearerToken, requireAuth } from "../lib/supabase";
+import {
+  extractBearerToken,
+  getSupabasePublicUrl,
+  requireAuth,
+  supabaseRootFetch,
+} from "../lib/supabase";
 
 const router: IRouter = Router();
 
@@ -10,8 +15,8 @@ const ALLOWED_BUCKETS = new Set(["review-images", "review-videos", "avatars"]);
  *
  * Returns a signed upload URL for Supabase Storage so the client can PUT
  * directly without going through our server.  We never expose the
- * service-role key; the signed URL comes from the Supabase Storage API
- * proxied through the connector.
+ * service-role key; the signed URL comes from the Supabase Storage API using
+ * the caller's own bearer token, so Storage RLS remains in force.
  */
 router.post("/media/upload-url", async (req, res) => {
   const user = await requireAuth(req, res);
@@ -40,20 +45,16 @@ router.post("/media/upload-url", async (req, res) => {
 
   const token = extractBearerToken(req)!;
 
-  let response: Awaited<ReturnType<typeof connectors.proxy>>;
+  let response: Response;
   try {
-    response = await connectors.proxy(
-      "supabase",
-      `/storage/v1/object/upload/sign/${bucket}/${storagePath}`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ expiresIn: 600 }),
+    response = await supabaseRootFetch(`/storage/v1/object/upload/sign/${bucket}/${storagePath}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
       },
-    );
+      body: JSON.stringify({ expiresIn: 600 }),
+    });
   } catch {
     return res
       .status(502)
@@ -104,8 +105,7 @@ router.post("/media/upload-url", async (req, res) => {
   let publicBaseUrl: string | null = null;
   if (!/^https?:\/\//i.test(rawSignedUrl)) {
     try {
-      const config = await connectors.getCliConfig("supabase");
-      publicBaseUrl = config.host.replace(/\/$/, "");
+      publicBaseUrl = getSupabasePublicUrl();
       const storagePathname = rawSignedUrl.startsWith("/storage/v1/")
         ? rawSignedUrl
         : `/storage/v1${rawSignedUrl.startsWith("/") ? "" : "/"}${rawSignedUrl}`;

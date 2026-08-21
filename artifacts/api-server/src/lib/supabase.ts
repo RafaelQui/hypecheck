@@ -1,18 +1,59 @@
 /**
  * Supabase connector helpers.
  *
- * All access goes through @replit/connectors-sdk proxying to the "supabase"
- * connector.  Identity is always derived from the caller's Authorization Bearer
+ * Database reads go through the Replit Supabase PostgREST connector. Auth and
+ * Storage use the project-root API with the publishable key held in server
+ * secrets. Identity is always derived from the caller's Authorization Bearer
  * token – never from a caller-supplied header or demo fallback.
  */
 
 import { ReplitConnectors } from "@replit/connectors-sdk";
-import type { Request, Response } from "express";
+import type { Request, Response as ExpressResponse } from "express";
 
 const connectors = new ReplitConnectors();
 
 // Re-export the shared connectors instance so routes don't create their own.
 export { connectors };
+
+function getSupabaseProjectUrl(): string {
+  const value = process.env.SUPABASE_URL?.trim();
+  if (!value) throw new Error("SUPABASE_URL is not configured.");
+
+  const url = new URL(value);
+  if (url.pathname !== "/" || url.search || url.hash) {
+    throw new Error("SUPABASE_URL must be the Supabase project root URL.");
+  }
+  return url.origin;
+}
+
+function getSupabasePublishableKey(): string {
+  const value = process.env.SUPABASE_PUBLISHABLE_KEY?.trim() ?? process.env.SUPABASE_ANON_KEY?.trim();
+  if (!value) throw new Error("SUPABASE_PUBLISHABLE_KEY is not configured.");
+  return value;
+}
+
+/**
+ * Calls a Supabase project-root API (Auth or Storage). The publishable key
+ * remains server-side; Expo only receives its own session or a signed URL.
+ */
+export async function supabaseRootFetch(
+  path: string,
+  options: RequestInit = {},
+): Promise<Response> {
+  if (!path.startsWith("/")) throw new Error("Supabase API paths must start with '/'.");
+
+  const headers = new Headers(options.headers);
+  headers.set("apikey", getSupabasePublishableKey());
+
+  return fetch(`${getSupabaseProjectUrl()}${path}`, {
+    ...options,
+    headers,
+  });
+}
+
+export function getSupabasePublicUrl(): string {
+  return getSupabaseProjectUrl();
+}
 
 /**
  * Extract the Bearer token from a request's Authorization header.
@@ -51,9 +92,9 @@ export async function getAuthUser(
     return { error: { status: 401, message: "Authorization Bearer token is required." } };
   }
 
-  let response: Awaited<ReturnType<typeof connectors.proxy>>;
+  let response: Response;
   try {
-    response = await connectors.proxy("supabase", "/auth/v1/user", {
+    response = await supabaseRootFetch("/auth/v1/user", {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -93,7 +134,7 @@ export async function getAuthUser(
  */
 export async function requireAuth(
   req: Request,
-  res: Response,
+  res: ExpressResponse,
 ): Promise<SupabaseUser | null> {
   const result = await getAuthUser(req);
   if ("error" in result) {

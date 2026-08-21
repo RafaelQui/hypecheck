@@ -171,6 +171,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorBody"
 
+  /auth/logout:
+    post:
+      operationId: authLogout
+      tags: [auth]
+      summary: End the current authenticated session
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: Session ended
+        "401":
+          description: Missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+
   # ---------------------------------------------------------------------------
   # Wants
   # ---------------------------------------------------------------------------
@@ -479,6 +502,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserProfile"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+        "502":
+          description: Supabase unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
+    patch:
+      operationId: updateProfile
+      tags: [profile]
+      summary: Update the current user's profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateInput"
+      responses:
+        "200":
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "400":
+          description: Invalid update
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorBody"
         "401":
           description: Unauthorized
           content:
@@ -836,6 +896,13 @@ components:
           type: string
           nullable: true
         createdAt:
+          type: string
+
+    ProfileUpdateInput:
+      type: object
+      required: [avatarUrl]
+      properties:
+        avatarUrl:
           type: string
 
     # -------------------------------------------------------------------------

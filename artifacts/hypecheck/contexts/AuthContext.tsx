@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { authLogin, authMe, authRefresh, authSignup, type AuthSession } from "@workspace/api-client-react";
+import { authLogin, authLogout, authMe, authRefresh, authSignup, type AuthSession } from "@workspace/api-client-react";
 
 const SESSION_KEY = "hypecheck_supabase_session";
 const REFRESH_SKEW_MS = 60_000;
@@ -112,8 +112,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       },
       signIn: async (email, password) => acceptSession(await authLogin({ email, password })),
       signOut: async () => {
-        await saveSession(null);
-        setSession(null);
+        try {
+          if (session) {
+            await authLogout({ headers: { Authorization: `Bearer ${session.accessToken}` } });
+          }
+        } finally {
+          // Clearing the device session is still important if the network is
+          // unavailable while revoking it remotely.
+          await saveSession(null);
+          setSession(null);
+        }
       },
     }),
     [acceptSession, loading, session],

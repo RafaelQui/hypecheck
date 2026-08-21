@@ -33,6 +33,7 @@ import type {
   ListProducts200,
   ListProductsParams,
   ProductDetail,
+  ProfileUpdateInput,
   RefreshTokenInput,
   RemoveWantParams,
   Review,
@@ -439,6 +440,77 @@ export function useAuthMe<TData = Awaited<ReturnType<typeof authMe>>, TError = E
 
 
 
+
+export const getAuthLogoutUrl = () => {
+
+
+
+
+  return `/api/auth/logout`
+}
+
+/**
+ * @summary End the current authenticated session
+ */
+export const authLogout = async ( options?: Parameters<typeof customFetch>[1]): Promise<void> => {
+
+  return customFetch<void>(getAuthLogoutUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getAuthLogoutMutationOptions = <TError = ErrorType<ErrorBody>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext> => {
+
+const mutationKey = ['authLogout'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof authLogout>>, void> = () => {
+
+
+          return  authLogout(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AuthLogoutMutationResult = NonNullable<Awaited<ReturnType<typeof authLogout>>>
+
+    export type AuthLogoutMutationError = ErrorType<ErrorBody>
+
+    /**
+ * @summary End the current authenticated session
+ */
+export const useAuthLogout = <TError = ErrorType<ErrorBody>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof authLogout>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof authLogout>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getAuthLogoutMutationOptions(options));
+    }
 
 export const getGetWantsUrl = () => {
 
@@ -1063,6 +1135,77 @@ export function useGetProfile<TData = Awaited<ReturnType<typeof getProfile>>, TE
 
 
 
+
+export const getUpdateProfileUrl = () => {
+
+
+
+
+  return `/api/profile`
+}
+
+/**
+ * @summary Update the current user's profile
+ */
+export const updateProfile = async (profileUpdateInput: ProfileUpdateInput, options?: Parameters<typeof customFetch>[1]): Promise<UserProfile> => {
+
+  return customFetch<UserProfile>(getUpdateProfileUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(profileUpdateInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateProfileMutationOptions = <TError = ErrorType<ErrorBody>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdateInput>}, TContext> => {
+
+const mutationKey = ['updateProfile'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateProfile>>, {data: BodyType<ProfileUpdateInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateProfileMutationResult = NonNullable<Awaited<ReturnType<typeof updateProfile>>>
+    export type UpdateProfileMutationBody = BodyType<ProfileUpdateInput>
+    export type UpdateProfileMutationError = ErrorType<ErrorBody>
+
+    /**
+ * @summary Update the current user's profile
+ */
+export const useUpdateProfile = <TError = ErrorType<ErrorBody>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateProfile>>, TError,{data: BodyType<ProfileUpdateInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateProfile>>,
+        TError,
+        {data: BodyType<ProfileUpdateInput>},
+        TContext
+      > => {
+      return useMutation(getUpdateProfileMutationOptions(options));
+    }
 
 export const getGetProfileReviewsUrl = (params?: GetProfileReviewsParams,) => {
   const normalizedParams = new URLSearchParams();

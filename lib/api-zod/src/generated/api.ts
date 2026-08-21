@@ -99,6 +99,12 @@ export const AuthMeResponse = zod.object({
 
 
 /**
+ * @summary End the current authenticated session
+ */
+export const AuthLogoutResponse = zod.void()
+
+
+/**
  * @summary Get the current user's saved products
  */
 export const GetWantsResponse = zod.object({
@@ -269,6 +275,22 @@ export const CreateReviewResponse = zod.object({
  * @summary Get the current user's profile
  */
 export const GetProfileResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "username": zod.string().nullish(),
+  "avatarUrl": zod.string().nullish(),
+  "createdAt": zod.string()
+})
+
+
+/**
+ * @summary Update the current user's profile
+ */
+export const UpdateProfileBody = zod.object({
+  "avatarUrl": zod.string()
+})
+
+export const UpdateProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "username": zod.string().nullish(),

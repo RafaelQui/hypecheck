@@ -20,6 +20,7 @@ export * from './listProducts200';
 export * from './listProductsParams';
 export * from './productDetail';
 export * from './productSummary';
+export * from './profileUpdateInput';
 export * from './refreshTokenInput';
 export * from './removeWantParams';
 export * from './review';
