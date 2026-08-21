@@ -1,0 +1,101 @@
+# Debug Review Save Failure
+
+On my real phone in Expo Go, when I submit a review in HypeCheck, the app says:
+
+"Unable to save review to Supabase"
+
+Debug ONLY the live review save flow.
+
+Do not redesign the app.
+Do not change unrelated screens.
+Do not weaken Row Level Security unless you prove RLS is the actual cause.
+
+Verify the following:
+
+1. AUTHENTICATED USER
+
+* Confirm the user is logged in.
+* Confirm the current Supabase Auth user's UUID is being used as `user_id`.
+* Confirm that exact UUID exists in `public.profiles.id`.
+
+2. PRODUCT ID
+
+* Confirm the selected product uses the real UUID from `public.products.id`.
+* Do NOT use product name, array index, slug, or mock/local ID.
+* Confirm the product row exists in Supabase.
+
+3. REVIEW INSERT
+   Confirm the app is inserting into `public.reviews` with:
+
+* product_id
+* user_id
+* rating
+* worth_it
+* review_text
+* video_url when present
+* photo_url when present
+
+4. REQUIRED VALUES
+   Verify:
+
+* rating is an integer from 1 to 5
+* worth_it is a real boolean
+* review_text is a string, using "" if empty
+* product_id is a valid UUID
+* user_id is a valid UUID
+
+5. RLS / AUTH TOKEN
+   Confirm the request includes the authenticated user's Supabase access token so:
+
+auth.uid() = user_id
+
+passes the existing Reviews RLS policy.
+
+6. MEDIA
+   If the review includes a photo or video:
+
+* verify the media upload succeeds first
+* verify the returned URL/path is valid
+* only then insert the review
+
+Also test a TEXT-ONLY review with no media to determine whether Storage is causing the failure.
+
+7. CAPTURE THE REAL ERROR
+   Do not hide the Supabase error behind "Unable to save review to Supabase."
+
+Show me the exact:
+
+* HTTP status
+* Supabase/PostgREST error code
+* message
+* details
+* hint
+
+8. FIX ONLY THE ROOT CAUSE
+   Once the exact cause is identified, fix the review save flow.
+
+Do not silently fall back to local/mock reviews.
+
+9. VERIFY
+   After fixing, test a real review against the live Supabase project and confirm:
+
+* a new row appears in public.reviews
+* user_id matches the authenticated user
+* product_id matches the selected product
+* the review appears on Profile
+* the review appears on the correct Product Detail page
+* product rating/review count updates through product_summaries
+
+Report:
+
+* root cause
+* exact Supabase error
+* user_id used
+* product_id used
+* whether RLS passed
+* whether text-only review works
+* whether photo review works
+* whether video review works
+* files changed
+
+Do not claim it is fixed unless a real live review INSERT succeeds.
