@@ -80,7 +80,7 @@ function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
     {status==='readyToPlay'?<><Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Open video fullscreen" onPress={()=>setIsFullscreen(true)} style={profileStyles.videoFullscreenButton}><Ionicons name="expand" size={20} color="#fff"/></Pressable></>:null}
     <Modal visible={isFullscreen} animationType="fade" onRequestClose={()=>setIsFullscreen(false)} statusBarTranslucent>
       <View style={profileStyles.fullscreenVideoModal}>
-        <VideoView player={player} style={profileStyles.fullscreenVideoPlayer} nativeControls={false} contentFit="contain"/>
+        <VideoView player={player} style={profileStyles.fullscreenVideoPlayer} nativeControls={false} contentFit="cover"/>
         {status==='readyToPlay'?<Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.fullscreenVideoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable>:null}
         <Pressable accessibilityRole="button" accessibilityLabel="Close fullscreen video" onPress={()=>setIsFullscreen(false)} style={[profileStyles.fullscreenCloseButton,{top:insets.top+12}]}><Ionicons name="close" size={24} color="#fff"/></Pressable>
       </View>
@@ -416,8 +416,8 @@ const profileStyles = StyleSheet.create({
   videoStatus:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(28,17,20,.76)',paddingHorizontal:20},
   videoStatusText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:'#fff',textAlign:'center'},
   videoErrorDetail:{fontFamily:'Inter_400Regular',fontSize:12,color:'rgba(255,255,255,.74)',textAlign:'center'},
-  fullscreenVideoModal:{flex:1,backgroundColor:'#000',justifyContent:'center'},
-  fullscreenVideoPlayer:{width:'100%',aspectRatio:16/9,backgroundColor:'#000'},
+  fullscreenVideoModal:{flex:1,backgroundColor:'#000'},
+  fullscreenVideoPlayer:{...StyleSheet.absoluteFillObject,backgroundColor:'#000'},
   fullscreenVideoTapTarget:{position:'absolute',top:0,bottom:0,left:0,right:0,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,0,0,.08)'},
   fullscreenCloseButton:{position:'absolute',left:18,width:42,height:42,borderRadius:21,backgroundColor:'rgba(0,0,0,.58)',alignItems:'center',justifyContent:'center'},
   tabContent:{paddingTop:3},
