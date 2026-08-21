@@ -57,6 +57,7 @@
   },
   "dependencies": {
     "expo-file-system": "~19.0.24",
-    "expo-secure-store": "~15.0.8"
+    "expo-secure-store": "~15.0.8",
+    "expo-video": "~3.0.16"
   }
 }

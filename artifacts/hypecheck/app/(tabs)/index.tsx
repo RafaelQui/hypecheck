@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Dimensions, Image, Linking, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Dimensions, Image, Modal, PanResponder, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
 import { fetch as expoFetch } from 'expo/fetch';
+import { VideoView, useVideoPlayer } from 'expo-video';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQueryClient } from '@tanstack/react-query';
 import palette from '@/constants/colors';
@@ -56,11 +57,26 @@ const reviews: Review[] = [
 
 function Rating({ value, size=13 }: { value:number; size?:number }) { return <View style={s.rating}>{[0,1,2,3,4].map(i => <Ionicons key={i} name={i < Math.round(value) ? 'star' : 'star-outline'} size={size} color={colors.accentForeground} />)}<Text style={s.ratingText}>{value.toFixed(1)}</Text></View>; }
 function VideoReviewPreview({ videoUrl }: { videoUrl:string }) {
-  const openVideo=async()=>{
-    try { await Linking.openURL(videoUrl); }
-    catch { Alert.alert('Could not open video','This video is unavailable right now.'); }
+  const player=useVideoPlayer({uri:videoUrl,contentType:'progressive'},videoPlayer=>{videoPlayer.loop=false;videoPlayer.allowsExternalPlayback=false;});
+  const [status,setStatus]=useState(player.status);
+  const [isPlaying,setIsPlaying]=useState(player.playing);
+  const [playbackError,setPlaybackError]=useState<string|null>(null);
+  useEffect(()=>{
+    const statusSubscription=player.addListener('statusChange',event=>{setStatus(event.status);setPlaybackError(event.error?.message??null);});
+    const playingSubscription=player.addListener('playingChange',event=>setIsPlaying(event.isPlaying));
+    return ()=>{statusSubscription.remove();playingSubscription.remove();};
+  },[player]);
+  const togglePlayback=()=>{
+    if(status==='loading'||status==='idle'||status==='error')return;
+    if(player.playing)player.pause();
+    else player.play();
   };
-  return <Pressable accessibilityRole="link" accessibilityLabel="Play video review" onPress={openVideo} style={profileStyles.videoReviewCard}><View style={profileStyles.videoReviewPlay}><Ionicons name="play" size={24} color="#fff"/></View><Text style={profileStyles.videoReviewTitle}>Video review</Text><Text style={profileStyles.videoReviewCopy}>Tap to play</Text></Pressable>;
+  return <View style={profileStyles.videoReviewCard}>
+    <VideoView player={player} style={profileStyles.videoReviewPlayer} nativeControls={false} contentFit="contain"/>
+    {status==='loading'||status==='idle'?<View style={profileStyles.videoStatus}><ActivityIndicator color="#fff"/><Text style={profileStyles.videoStatusText}>Loading video…</Text></View>:null}
+    {status==='error'?<View style={profileStyles.videoStatus}><Ionicons name="alert-circle-outline" size={28} color="#fff"/><Text style={profileStyles.videoStatusText}>This video could not be played.</Text>{playbackError?<Text style={profileStyles.videoErrorDetail}>Please try again later.</Text>:null}</View>:null}
+    {status==='readyToPlay'?<Pressable accessibilityRole="button" accessibilityLabel={isPlaying?'Pause video review':'Play video review'} onPress={togglePlayback} style={profileStyles.videoTapTarget}><View style={profileStyles.videoReviewPlay}><Ionicons name={isPlaying?'pause':'play'} size={22} color="#fff"/></View><Text style={profileStyles.videoReviewCopy}>{isPlaying?'Tap to pause':'Tap to play'}</Text></Pressable>:null}
+  </View>;
 }
 function Header({ title, subtitle, compact, onAvatarPress }: { title:string; subtitle?:string; compact?:boolean; onAvatarPress?:()=>void }) { const insets=useSafeAreaInsets(); const {session}=useAuth(); const {profile}=useProfile(); const username=profile?.username||session?.user.email?.split('@')[0]||'Guest'; const avatarUrl=profile?.avatarUrl?.trim()||null; return <View style={[s.header,{paddingTop:insets.top+(compact?4:10)}]}><View><Text style={s.brand}>HypeCheck</Text><Text style={s.headerTitle}>{title}</Text>{subtitle && <Text style={s.muted}>{subtitle}</Text>}</View><Pressable accessibilityRole="button" accessibilityLabel="Open profile" onPress={onAvatarPress} style={[s.avatar,{overflow:'hidden'}]}>{avatarUrl?<Image source={{uri:avatarUrl}} style={{width:'100%',height:'100%',resizeMode:'cover'}}/>:<Text style={s.avatarText}>{username[0].toUpperCase()}</Text>}</Pressable></View>; }
 function Chip({ label, active, onPress }: {label:string;active?:boolean;onPress?:()=>void}) { return <Pressable onPress={onPress} style={[s.chip, active && s.chipActive]}><Text style={[s.chipText,active&&s.chipTextActive]}>{label}</Text></Pressable>; }
@@ -382,10 +398,14 @@ const profileStyles = StyleSheet.create({
   tabText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:colors.mutedForeground,paddingBottom:12},
   tabTextActive:{color:colors.primary},
   tabIndicator:{position:'absolute',left:12,right:12,bottom:-1,height:3,borderRadius:3,backgroundColor:colors.primary},
-  videoReviewCard:{height:160,borderRadius:14,backgroundColor:colors.foreground,marginBottom:12,alignItems:'center',justifyContent:'center'},
-  videoReviewPlay:{width:48,height:48,borderRadius:24,backgroundColor:colors.primary,alignItems:'center',justifyContent:'center',marginBottom:9},
-  videoReviewTitle:{fontFamily:'Inter_700Bold',fontSize:15,color:'#fff'},
-  videoReviewCopy:{fontFamily:'Inter_500Medium',fontSize:12,color:'rgba(255,255,255,.72)',marginTop:3},
+  videoReviewCard:{width:'100%',aspectRatio:16/9,borderRadius:14,overflow:'hidden',backgroundColor:colors.foreground,marginBottom:12,position:'relative'},
+  videoReviewPlayer:{width:'100%',height:'100%',backgroundColor:colors.foreground},
+  videoTapTarget:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',backgroundColor:'rgba(0,0,0,.08)'},
+  videoReviewPlay:{width:48,height:48,borderRadius:24,backgroundColor:'rgba(255,96,104,.94)',alignItems:'center',justifyContent:'center'},
+  videoReviewCopy:{fontFamily:'Inter_600SemiBold',fontSize:12,color:'#fff',marginTop:8,textShadowColor:'rgba(0,0,0,.5)',textShadowRadius:3},
+  videoStatus:{...StyleSheet.absoluteFillObject,alignItems:'center',justifyContent:'center',gap:8,backgroundColor:'rgba(28,17,20,.76)',paddingHorizontal:20},
+  videoStatusText:{fontFamily:'Inter_600SemiBold',fontSize:13,color:'#fff',textAlign:'center'},
+  videoErrorDetail:{fontFamily:'Inter_400Regular',fontSize:12,color:'rgba(255,255,255,.74)',textAlign:'center'},
   tabContent:{paddingTop:3},
   reviewPhoto:{width:'100%',height:160,borderRadius:14,marginBottom:12},
   emptyState:{alignItems:'center',justifyContent:'center',paddingTop:50,paddingHorizontal:22,gap:9},
