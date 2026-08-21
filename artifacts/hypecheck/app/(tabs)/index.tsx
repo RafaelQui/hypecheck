@@ -231,7 +231,14 @@ export default function DiscoverTab() {
   if(productsQuery.isLoading)return <View style={[s.page,s.emptyTab]}><Text style={s.emptyTitle}>Loading live products…</Text><Text style={s.muted}>Connecting to Supabase.</Text></View>;
   if(productsQuery.isError||!catalog.length){const message=productsQuery.error instanceof Error?productsQuery.error.message:'The live Supabase catalog returned no products.';return <View style={[s.page,s.emptyTab]}><Text style={s.emptyTitle}>Could not load live products</Text><Text style={[s.muted,s.emptyCopy]}>{message}</Text><Pressable onPress={()=>productsQuery.refetch()} style={[s.primaryButton,s.discoverButton]}><Text style={s.primaryText}>Try again</Text></Pressable></View>;}
   if(detail)return <Detail product={detail} onBack={()=>setDetail(null)} onWant={()=>wants.includes(detail.id)?removeWantById(detail.id):addWant(detail.id)} wanted={wants.includes(detail.id)}/>;
-  return <>{tab==='Discover'&&<Discover catalog={catalog} wants={wants} setWants={setWants} onDetail={setDetail} onProfile={()=>setTab('Profile')}/>} {tab==='Search'&&<SearchScreen catalog={catalog} onDetail={setDetail}/>} {tab==='Review'&&<ReviewScreen catalog={catalog} onSubmitted={()=>setTab('Profile')}/>} {tab==='Wants'&&<WantsScreen catalog={catalog} wants={wants} onDetail={setDetail} onRemove={removeWantById} onDiscover={()=>setTab('Discover')} isLoading={!!session&&wantsQuery.isLoading} error={!!session&&wantsQuery.isError}/>} {tab==='Profile'&&<ProfileScreen wants={wants}/>}<View style={s.floatingNav}>{[['Discover','home'],['Search','search'],['Review','edit-3'],['Wants','heart'],['Profile','user']].map(([name,icon])=><Pressable key={name} onPress={()=>setTab(name)} style={s.navItem}><Feather name={icon as any} size={20} color={tab===name?colors.primary:colors.mutedForeground}/><Text style={[s.navLabel,tab===name&&s.navLabelActive]}>{name}</Text></Pressable>)}</View></>;
+  return <>
+    {tab==='Discover'&&<Discover catalog={catalog} wants={wants} setWants={setWants} onDetail={setDetail} onProfile={()=>setTab('Profile')}/>}
+    {tab==='Search'&&<SearchScreen catalog={catalog} onDetail={setDetail}/>}
+    {tab==='Review'&&<ReviewScreen catalog={catalog} onSubmitted={()=>setTab('Profile')}/>}
+    {tab==='Wants'&&<WantsScreen catalog={catalog} wants={wants} onDetail={setDetail} onRemove={removeWantById} onDiscover={()=>setTab('Discover')} isLoading={!!session&&wantsQuery.isLoading} error={!!session&&wantsQuery.isError}/>}
+    {tab==='Profile'&&<ProfileScreen wants={wants}/>}
+    <View style={s.floatingNav}>{[['Discover','home'],['Search','search'],['Review','edit-3'],['Wants','heart'],['Profile','user']].map(([name,icon])=><Pressable key={name} onPress={()=>setTab(name)} style={s.navItem}><Feather name={icon as any} size={20} color={tab===name?colors.primary:colors.mutedForeground}/><Text style={[s.navLabel,tab===name&&s.navLabelActive]}>{name}</Text></Pressable>)}</View>
+  </>;
 }
 
 const s=StyleSheet.create({
