@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration-2 regression retest (frontend only, 430x900 Expo Web preview) of the 3 iteration-1 failures plus a small sanity subset. ALL 3 FIXES PASS. FIX1: inline [data-testid=auth-error] card now renders for empty email ('Enter your email and a password with at least 6 characters.') and for <6 char password ('Password must be at least 6 characters.'); zero native dialogs fired (page.on('dialog') captured none), confirming Alert.alert was correctly replaced. FIX2: demo sign-up (demo@hypecheck.dev / Password123!) lands on Discover (Worth the Hype + Portable Mini Projector visible) and after page.reload() the app renders Discover directly — onboarding-continue count=0, Worth the Hype present, hypecheck_supabase_session still in localStorage. FIX3: [data-testid=demo-mode-notice] text contains literal '6+' and no '&plus;' entity. Sanity: demo-mode-notice visible on account step; demo sign-up and demo sign-in (via 'Already have an account? Sign in' toggle) both complete with ZERO /api/auth/* requests; Discover first card renders correctly (89% Worth the Hype, $34.99, 4.4 (2,183), @MikeTech quote, pass/info/want buttons, tab bar).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Onboarding account step", "issues": ["Carry-over minor from iteration 1 (not in scope of this retest): the submit button still has no disabled/invalid visual state; and the demo-notice body copy is muted grey on light pink (borderline WCAG AA at 12px). The new auth-error card contrast (#B23840 on rgba(208,82,88,0.1)) is fine."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "app/(tabs)/index.tsx remains a single >1000 line file holding Onboarding, Discover, Detail, Search, Wants, Review and Profile — should be split into per-screen modules (carry-over, non-blocking).",
+    "Alert.alert is still used across Detail/Review/Profile flows (handleHelpful, ReviewScreen.submit, uploadAvatar, saveProfile, signOut error). These will be silent no-ops on Expo Web exactly like the onboarding bug that was just fixed — recommend applying the same inline-error pattern there before those flows are exercised on web.",
+    "`onboarded || Boolean(session)` correctly fixes the refresh regression; note the onboarding interest selections are still not persisted anywhere (cosmetic)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only request; /api intentionally absent in demo mode)", "frontend": "100% (7/7 retested scenarios pass)"},
+  "seed_data_creation": "Client-side demo session only: demo@hypecheck.dev / Password123! in localStorage key hypecheck_supabase_session.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": false,
+  "test_credentials": "/app/memory/test_credentials.md present and accurate — demo mode accepts any email + 6+ char password; used demo@hypecheck.dev / Password123!",
+  "context_for_next_testing_agent": "All 3 iteration-1 defects are fixed and verified. Remaining untested surface on web: Detail screen actions (Helpful, Share, View on retailer), Review submission, and Profile edit/avatar upload — all of these still rely on Alert.alert, which is a no-op on react-native-web, so any error/validation there will be invisible. Flow reminder: clear localStorage first, 2x [data-testid=onboarding-continue] -> account step. First bundle load can take up to ~2 min after a Metro restart; warm loads are ~10s.",
+  "rca_of_the_issue": "No new issues. Previous RCAs resolved: (1) inline authError state replaces the web no-op Alert.alert in Onboarding.next(); (2) skipOnboarding = onboarded || Boolean(session) derives the onboarding gate from the persisted auth session so a reload no longer resets to step 0; (3) '&plus;' entity replaced with a literal '+'."
+}

@@ -1,0 +1,44 @@
+{
+  "summary": "Frontend-only testing of HypeCheck Expo Web demo-mode auth on the Emergent preview (mobile viewport 430x900). Verified: app loads and renders onboarding, 2x Continue reaches the account step, demo-mode-notice is visible, demo sign-up and demo sign-in both succeed with ZERO /api/auth/* network calls and land on Discover with the correct first card (Portable Mini Projector, 89% Worth the Hype, pass/info/want buttons), session is persisted to localStorage key hypecheck_supabase_session, and Profile shows the demo user (@demo, Sign out visible). Two requirements FAILED: (1) client-side validation gives no user feedback at all on web, (2) after a page refresh the app returns to onboarding step 0 instead of landing on Discover.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/products", "issue": "Returns 502 on every app load (no Express/Supabase API in this environment). UI correctly falls back to placeholder products, but the console error noise remains and any future non-placeholder screen will break."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Onboarding validation (app/(tabs)/index.tsx next())", "issue": "CRITICAL: Alert.alert() is a no-op in react-native-web, so submitting with an empty email or a <6 char password does absolutely nothing — no window.alert/confirm dialog fired (verified via page.on('dialog')) and no inline error text anywhere in the DOM. Requirement 'submitting with empty email should show an error alert' FAILS. Also means signIn/signUp thrown errors would be silent on web. Fix: render an inline error <Text> state (with data-testid, e.g. 'auth-error') instead of / in addition to Alert.alert, or use a web-safe alert wrapper (Platform.OS==='web' ? window.alert : Alert.alert).", "selector": "[data-testid=sign-up-submit], [data-testid=sign-in-submit]", "priority": "HIGH"},
+      {"component": "demo-mode-notice text", "issue": "Literal HTML entity leaks into rendered copy: shows 'any email + 6&plus; character password' instead of '6+'. JSX/RN Text does not decode &plus;. Use a plain '+' or {'6+'}.", "selector": "[data-testid=demo-mode-notice]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [
+      {"flow": "Session persistence after refresh", "issue": "Requirement FAILS: after a successful demo sign-in, reloading the page shows the onboarding screen (step 0, data-testid=onboarding-continue present) and NOT Discover, even though the demo session is present in localStorage. Root cause: DiscoverTab keeps `onboarded` in local useState and never derives it from the auth session or persists it. Fix: initialise/short-circuit onboarding when session is non-null (e.g. const [onboarded,setOnboarded]=useState(false) -> gate render on (onboarded || session)), and/or persist an onboarding flag in AsyncStorage.", "affected_selectors": ["[data-testid=onboarding-continue]"]},
+      {"flow": "Demo auth network isolation", "issue": "PASS - no /api/auth/login or /api/auth/signup requests were made for either demo sign-up or demo sign-in.", "affected_selectors": []}
+    ],
+    "design_issues": [
+      {"screen": "Onboarding account step", "issues": ["Demo-mode notice body text is low-contrast muted grey on a light pink tinted panel (colors.mutedForeground on rgba(240,128,128,0.12)) - borderline WCAG AA for 12px text.", "Submit button has no disabled/greyed visual state; it is only disabled while submitting, so an invalid form looks fully actionable while doing nothing (compounds the silent-validation bug)."]},
+      {"screen": "Discover", "issues": ["No issues found - card, hype chip, price/rating row, reviewer quote, and the three action buttons all render correctly on 430x900."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Replace Alert.alert in the Onboarding submit path with an inline, web-visible error message (add data-testid=auth-error) so empty-email / short-password / auth failures are surfaced on Expo Web.",
+    "Make onboarding respect an existing session so a refresh lands the signed-in demo user on Discover instead of onboarding step 0.",
+    "Fix the '6&plus;' HTML entity in the demo-mode notice copy.",
+    "Optional: suppress or handle the /api/products 502 (skip the query entirely when no EXPO_PUBLIC_DOMAIN is set) to remove console errors and avoid retry noise."
+  ],
+  "critical_code_review_comments": [
+    "app/(tabs)/index.tsx is a single very large file (>1000 lines) containing Onboarding, Discover, Detail, Search, Wants, Review and Profile screens - should be split into per-screen modules.",
+    "Onboarding.next() relies solely on Alert.alert for all error surfacing; on web this silently swallows every validation and auth error. This is the highest-priority defect found.",
+    "`onboarded` is derived from local component state only, so it is not reconciled with the persisted auth session (causes the refresh regression).",
+    "AuthContext demo-mode implementation itself looks correct: demo token prefix guards refresh/me/logout paths, session written with expiry to AsyncStorage on web. Verified stored payload contains demo::<ts> tokens and user id demo-demo@hypecheck.dev."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only request; /api is intentionally absent in this env)", "frontend": "71% (5 of 7 requested scenarios pass)"},
+  "seed_data_creation": "Client-side demo session for demo@hypecheck.dev / Password123! (localStorage only).",
+  "should_call_test_agent_after_fix": true,
+  "should_main_agent_self_test": false,
+  "test_credentials": "/app/memory/test_credentials.md does not exist. Demo mode accepts any email + 6+ char password; used demo@hypecheck.dev / Password123!",
+  "context_for_next_testing_agent": "App is Expo Web served at the preview root (no /app/frontend or /app/backend; source lives in /app/artifacts/hypecheck). Bundle warm-loads in ~5-10s after first compile; wait for [data-testid=onboarding-continue] with a 120s timeout. Flow: 2x onboarding-continue -> account step (email-input, first input[type=password], demo-mode-notice, sign-up-submit / toggle 'Already have an account? Sign in' -> sign-in-submit). Alerts do NOT surface on web, so assert on inline DOM text once the fix lands. Clear localStorage between runs (window.localStorage.clear()) since a stale demo session persists.",
+  "rca_of_the_issue": "1) Validation feedback: react-native-web's Alert module is a no-op, so Alert.alert('Add your details', ...) and the catch-block Alert.alert for signIn/signUp errors produce nothing on web - confirmed no dialog event fired and no error text in the DOM. 2) Refresh regression: the onboarding gate uses component-local useState(false) with no session/AsyncStorage hydration, so a persisted demo session cannot skip onboarding."
+}

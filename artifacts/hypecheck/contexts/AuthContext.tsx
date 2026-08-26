@@ -7,11 +7,29 @@ import { authLogin, authLogout, authMe, authRefresh, authSignup, type AuthSessio
 const SESSION_KEY = "hypecheck_supabase_session";
 const REFRESH_SKEW_MS = 60_000;
 
+// Demo mode kicks in when no backend domain is configured (e.g. the Emergent
+// web preview). In that mode the app skips real Supabase auth and stores a
+// client-only session so the user can still explore signed-in features.
+export const isDemoMode = !process.env.EXPO_PUBLIC_DOMAIN;
+const DEMO_TOKEN_PREFIX = "demo::";
+
+function makeDemoSession(email: string): AuthSession {
+  const stamp = Date.now();
+  return {
+    accessToken: `${DEMO_TOKEN_PREFIX}${stamp}`,
+    refreshToken: `${DEMO_TOKEN_PREFIX}refresh-${stamp}`,
+    expiresIn: 60 * 60 * 24 * 7,
+    tokenType: "bearer",
+    user: { id: `demo-${email.toLowerCase()}`, email, createdAt: new Date().toISOString() },
+  } as unknown as AuthSession;
+}
+
 type StoredSession = AuthSession & { expiresAt: number };
 
 type AuthState = {
   session: AuthSession | null;
   loading: boolean;
+  isDemo: boolean;
   signUp: (email: string, password: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -53,6 +71,12 @@ async function refreshStoredSession(): Promise<StoredSession | null> {
   refreshInFlight = (async () => {
     const current = await readSession();
     if (!current) return null;
+    // Demo tokens never need refreshing — just extend their expiry locally.
+    if (current.accessToken?.startsWith(DEMO_TOKEN_PREFIX)) {
+      const extended = withExpiry(current);
+      await saveSession(extended);
+      return extended;
+    }
     try {
       const refreshed = withExpiry(await authRefresh({ refreshToken: current.refreshToken }));
       // Supabase rotates refresh tokens. Write the entire replacement session
@@ -78,6 +102,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     readSession()
       .then(async (stored) => {
         if (!stored) return;
+        // Demo sessions are trusted locally — no /auth/me round-trip.
+        if (stored.accessToken?.startsWith(DEMO_TOKEN_PREFIX)) {
+          if (active) setSession(stored);
+          return;
+        }
         const accessToken = await getStoredAccessToken();
         if (!accessToken) return;
         await authMe({ headers: { Authorization: `Bearer ${accessToken}` } });
@@ -103,22 +132,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       session,
       loading,
+      isDemo: isDemoMode,
       signUp: async (email, password) => {
-        const result = await authSignup({ email, password });
+        const trimmed = email.trim();
+        if (!trimmed) throw new Error("Enter your email address.");
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        if (isDemoMode) { await acceptSession(makeDemoSession(trimmed)); return; }
+        const result = await authSignup({ email: trimmed, password });
         if (result.confirmationRequired || !result.session) {
           throw new Error(result.message || "Account created. Confirm your email, then sign in.");
         }
         await acceptSession(result.session);
       },
-      signIn: async (email, password) => acceptSession(await authLogin({ email, password })),
+      signIn: async (email, password) => {
+        const trimmed = email.trim();
+        if (!trimmed) throw new Error("Enter your email address.");
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        if (isDemoMode) { await acceptSession(makeDemoSession(trimmed)); return; }
+        await acceptSession(await authLogin({ email: trimmed, password }));
+      },
       signOut: async () => {
         try {
-          if (session) {
+          if (session && !session.accessToken?.startsWith(DEMO_TOKEN_PREFIX)) {
             await authLogout({ headers: { Authorization: `Bearer ${session.accessToken}` } });
           }
         } finally {
-          // Clearing the device session is still important if the network is
-          // unavailable while revoking it remotely.
           await saveSession(null);
           setSession(null);
         }
