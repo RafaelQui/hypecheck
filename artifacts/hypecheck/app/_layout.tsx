@@ -21,7 +21,12 @@ import { ProfileProvider } from '@/contexts/ProfileContext';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+// Only set a base URL when a real domain is configured (e.g. Replit dev domain).
+// On Emergent web preview EXPO_PUBLIC_DOMAIN is unset — leaving the base URL null
+// lets requests fail fast so the UI can fall back to placeholder data.
+if (process.env.EXPO_PUBLIC_DOMAIN) {
+  setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+}
 setAuthTokenGetter(getStoredAccessToken);
 
 function RootLayoutNav() {
